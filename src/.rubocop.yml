@@ -1,0 +1,21 @@
+AllCops:
+  TargetRubyVersion: 2.3
+
+Style/Documentation:
+  Exclude:
+    - "app/controllers/**"
+
+Style/RegexpLiteral:
+  AllowInnerSlashes: true
+
+Metrics/LineLength:
+  Max: 100
+
+Style/DoubleNegation:
+  Enabled: false
+
+Metrics/MethodLength:
+  Max: 15
+
+Rails:
+  Enabled: true

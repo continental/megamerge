@@ -1,0 +1,370 @@
+<%# Copyright (c) 2018 Continental Automotive GmbH
+  #
+  # Licensed under the Apache License, Version 2.0 (the "License");
+  # you may not use this file except in compliance with the License.
+  # You may obtain a copy of the License at
+  #
+  #   http://www.apache.org/licenses/LICENSE-2.0
+  #
+  # Unless required by applicable law or agreed to in writing, software
+  # distributed under the License is distributed on an "AS IS" BASIS,
+  # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  # See the License for the specific language governing permissions and
+  # limitations under the License.
+  #%>
+
+<% @repo = @pr.repository %>
+<% @children = @pr.children %>
+
+<%# TODO: Change form action for each different button %>
+<%= form_tag(controller: "merge", action: "save", organization: params[:organization], repository: params[:repository], id: params[:id], method: :post, remote: true) do %>
+
+<div style="white-space:nowrap; display: flex;justify-content: center;align-items: center;" >
+    <div class='card' style="display:inline-block;min-width:60%">
+      <div class='card-header'>
+        <div class="row">
+          <div class="col" style="line-height:30px">
+            <%= link_to "Home", root_path %>
+            <span class="octicon octicon-chevron-right mySeparator"></span>
+            <%= link_to params[:organization], step2_path(params[:organization]) %>
+            <span class="octicon octicon-chevron-right mySeparator"></span>
+            <%= link_to params[:repository], step3_path(params[:organization], params[:repository]) %>
+            <span class="octicon octicon-chevron-right mySeparator"></span>
+
+            <% if(@pr.id?) %>
+              <a href="/view/<%= params[:organization]%>/<%= params[:repository]%>/<%= @pr.id%>">PR # <%= @pr.id%></a>
+            <% else %>
+              <a href="<%= branch_url(@repo.organization, @repo.repository, @pr.source_branch) %>"><%= @pr.source_branch%></a>
+              --&#x3E;
+              <a href="<%= branch_url(@repo.organization, @repo.repository, @pr.target_branch) %>"><%= @pr.target_branch%></a>
+            <% end %>
+          </div>
+          <div class="col text-right">
+            <% if(!@pr.closed? && @pr.id?) %>
+            <button type="button" class="btn btn-outline-danger btn-sm" onclick="ChangeLoadingCnt(1);DoMMAction('close');">
+              <span class="octicon octicon-x"></span>&nbsp;Close All PRs
+            </button>
+            <% elsif (@pr.closed? && @pr.id? && @pr.source_branch_exists? && !@pr.merged?) %>
+            <button type="button" class="btn btn-outline-success btn-sm" onclick="ChangeLoadingCnt(1);DoMMAction('reopen');">
+              <span class="octicon octicon-x"></span>&nbsp;Reopen All PRs
+            </button>
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <div class='card-body'>
+        <div class="row">
+          <h4 class="col-md-auto my-auto">
+            Meta <small>Pull Request</small>
+            <span style="color:lightgrey" class="octicon octicon-question" data-toggle="popover"
+                data-content="This is the Meta Pull Request. It contains and updates the default.xml and subrepo-files.">
+            </span>
+          </h4>
+          <div class="col-md text-right" style="bottom:-12px">
+            <small>
+              Result:
+              <a href="<%= commit_url(@repo.organization, @repo.repository, @pr.merge_commit_sha) %>" data-toggle="popover" data-delay="1000"
+                  data-content="This is the temporary meta commit that will be build by jenkins.">
+                  <%= @pr.merge_commit_sha %>
+              </a>
+            </small>
+          </div>
+        </div>
+        <hr>
+        <div class="row">
+          <div class="input-group col-sm-12">
+            <div class="input-group-prepend">
+              <span class="input-group-text">Title:</span>
+            </div>
+              <input type="text" name="meta_repo[title]" class="form-control" oninput="ChangeWasDone()"
+                value="<%= @pr.title %>" <%= ((@pr.merged? || @pr.closed?) ? "disabled" : "")%>>
+          </div>
+        </div>
+        <br>
+        <div class="row">
+          <div class="col-sm">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th class="text-center">PR</th>
+                  <th>Repository</th>
+                  <th>Source Branch</th>
+                  <th></th>
+                  <th>Target Branch</th>
+                  <th class="text-center">Config File</th>
+                  <th class="text-center">Status</th></tr>
+              </thead>
+              <tbody>
+                <td class="text-center">
+                  <input name="meta_repo[pull_id]" type="hidden" value="<%= @pr.id %>">
+                  <% if(@pr.id?) %>
+                    <a href="<%= pr_url(@repo.organization, @repo.repository, @pr.id) %>">
+                      # <%= @pr.id %>
+                    </a>
+                  <% else %>
+                    new
+                  <% end %>
+                </td>
+                <td>
+
+                  <input name="meta_repo[repository]" type="hidden" value="<%= @repo.repository %>">
+                  <input name="meta_repo[organization]" type="hidden" value="<%= @repo.organization %>">
+                  <a href='<%= repo_url(@repo.organization, @repo.repository) %>'>
+                    <%= @repo.name %>
+                  </a>
+                </td>
+                <td>
+                  <input name="meta_repo[source_branch]" type="hidden" value="<%= @pr.source_branch %>">
+                  <input name="meta_repo[shadow_branch]" type="hidden" value="<%= @pr.shadow_branch %>">
+                  <a href='<%= branch_url(@repo.organization, @repo.repository, @pr.source_branch) %>'>
+                    <%= @pr.source_branch %>
+                    <% if(@pr.outdated?) %>
+                      <span class="text-danger">- outdated</span>
+                    <% end %>
+                  </a>
+
+                </td>
+                <td class="text-center">---></td>
+                <td>
+                  <input name="meta_repo[target_branch]" type="hidden" value="<%= @pr.target_branch %>">
+                  <a href='<%= branch_url(@repo.organization, @repo.repository, @pr.target_branch) %>'>
+                    <%= @pr.target_branch %>
+                  </a>
+                </td>
+                <td class="text-center">
+                  <input name="meta_repo[config_file]" type="hidden" value="<%= @pr.config_file %>">
+                    <%= @pr.config_file %>
+                    <% if(@pr.children_outdated?) %>
+                      <span class="text-danger">- outdated</span>
+                    <% end %>
+                </td>
+                <td class="text-center">
+                  <span class="text-<%=@pr.status[:color]%>">
+                    <%=@pr.status[:text]%>
+                    <%=@pr.status[:checks]&.map { |check| "<br><a href='#{check[:target_url]}'>#{check[:context]}</a>" }&.join()&.html_safe %>
+                  </span>
+                </td>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <small><a style="color:grey" href="#" data-toggle="collapse" data-target="#advancedOptions">+ Advanced</a></small>
+        </div>
+        <div class="collapse" id="advancedOptions">
+          <hr>
+          <div class="form-group">
+            <label for="exampleFormControlTextarea1">Pull Request Description</label>
+            <textarea name="meta_repo[body]" class="form-control" oninput="ChangeWasDone()"
+              id="exampleFormControlTextarea1" rows="3"
+              <%= ((@pr.merged? || @pr.closed?) ? "disabled" : "")%>><%= @pr.body %></textarea>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" onchange="ChangeWasDone()"
+                id="meta_repo[do_squash]" name="meta_repo[do_squash]" value="true"
+                <%= (@pr.squash? ? "checked" : "")%> <%= ((@pr.merged? || @pr.closed?) ? "disabled" : "")%>>
+            <label class="form-check-label" for="meta_repo[do_squash]">Squash all Meta Commits</label>
+          </div>
+          <br><br>
+        </div>
+        <div id="disableInputsDiv" style="position:relative">
+          <div id="disableInputsDivOverlay" style="display:none;position: absolute;width: 100%;height:100%;z-index:2;background-color:rgba(255, 255, 255, 0.5);" >
+            <div class="loader"></div>
+          </div>
+          <div class="row">
+            <div class="col-sm-auto my-auto">
+              <h4 class="my-auto">
+                Sub <small>Pull Requests</small>
+                <span style="color:lightgrey" class="octicon octicon-question" data-toggle="popover"
+                    data-content="Here you can add Pull Requests that should be merged together with the Meta Pull Request in one atomic operation.
+                    The updating of hashes in default.xml or subrepo-files is handled by MegaMerge.">
+                </span>
+              </h4>
+            </div>
+          </div>
+          <hr>
+          <div class="row">
+            <div class="col-sm-3 my-auto">
+              <% if(!@pr.merged? && !@pr.closed?) %>
+                <div>
+                  <button type="button" class="btn btn-primary btn-sm my-auto"
+                          id="add-sub-repo"
+                          onclick="$(this).next().select2('open')">
+                    <span class="octicon octicon-plus"></span>&nbsp;Sub Pull Request
+                  </button>
+                  <select class="select2 select2-hide-header" id='addSubRepoName'>
+                    <option></option>
+                    <% @repos_in_organization.each do |repo| %>
+                      <option value='<%= repo  %>'><%= repo %></option>
+                    <% end %>
+                  </select>
+                </div>
+              <% end %>
+            </div>
+            <div class="col-sm-3 text-right">
+            </div>
+            <div class="col-sm">
+              <% if(!@pr.merged? && !@pr.closed?) %>
+              <div class="input-group input-group-sm">
+                <div class="input-group-prepend">
+                  <label class="input-group-text">Find Repos by Branch:</label>
+                </div>
+                <input type="text" class="form-control" id="search_branch" value="<%=@pr.source_branch%>">
+                <div class="input-group-append">
+                  <button class="btn btn-outline-secondary" type="button" onclick="SearchSubRepos($('#search_branch').val())">Search</button>
+                </div>
+              </div>
+              <% end %>
+            </div>
+          </div>
+          <div class='form-group row'>
+            <div class='col-sm'>
+              <br>
+              <table class="table" style="display:none">
+                <thead>
+                  <tr>
+                    <th class="text-center">PR</th>
+                    <th>Repository</th>
+                    <th>Source Branch</th>
+                    <th></th>
+                    <th>Target Branch</th>
+                    <th class="text-center">Status</th>
+                    <th class="text-center"></th></tr>
+                </thead>
+                <tbody id='subRepos' >
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <br>
+          <div class="row">
+            <div class="col-sm-auto">
+              <h4 class="my-auto">Configuration
+                <span style="color:lightgrey" class="octicon octicon-question" data-toggle="popover"
+                    data-content="Here you can modify the default.xml or subrepo-files without creating a Sub Pull Request.
+                    The changes that are defined here will be done together with the merge of the Meta Pull Request.">
+                </span>
+              </h4>
+            </div>
+            <div class="col-sm-auto d-flex">
+              <% if false %>
+              <div class="mr-1">
+                <button type="button" class="btn btn-sm btn-light" onclick="$(this).next().select2('open')">
+                  <span class="octicon octicon-plus"></span>&nbsp;Add new repository
+                </button>
+                <select id="AddNewRepository"
+                    onchange="AddSubRepoAction({action:1, repository: $(this).val(), organization: organization});ChangeWasDone()"
+                    style="width: 100%" class="select2 select2-hide-header">
+                  <option></option>
+                </select>
+              </div>
+              <% end %>
+
+              <% if(!@pr.merged? && !@pr.closed?) %>
+              <div class="mr-1">
+                <button type="button" class="btn btn-sm btn-light" onclick="$(this).next().select2('open')">
+                  <span class="octicon octicon-dash"></span>&nbsp;Remove existing repository
+                </button>
+                <select onchange="AddSubRepoAction({action:3, repository: $(this).val(), organization: organization});ChangeWasDone()"
+                    style="width: 100%" class="select2 select2-hide-header">
+                  <option></option>
+                  <% @repos_in_organization.each do |repo| %>
+                    <option value='<%= repo  %>'><%= repo %></option>
+                  <% end %>
+                </select>
+              </div>
+
+              <div class="mr-1">
+                <button type="button" class="btn btn-sm btn-light" onclick="$(this).next().select2('open')">
+                  <span class="octicon octicon-sync"></span>&nbsp;Just update repository hash
+                </button>
+                <select onchange="AddSubRepoAction({action:0, repository: $(this).val(), organization: organization});ChangeWasDone()"
+                    data-placeholder="Your Placeholder" style="width: 100%" class="select2 select2-hide-header">
+                  <option></option>
+                  <% @repos_in_organization.each do |repo| %>
+                    <option value='<%= repo  %>'><%= repo %></option>
+                  <% end %>
+                </select>
+              </div>
+              <% end %>
+            </div>
+          </div>
+          <table class="table" style="display:none; margin-top:16px">
+            <thead>
+              <tr>
+                <th class="text-center" style="width:25%">Action</th>
+                <th>Repository</th>
+                <th></th>
+                <th class="text-center"></th></tr>
+            </thead>
+            <tbody id='subRepoActions' >
+            </tbody>
+          </table>
+          <% if(@pr.done?) %>
+            <% if @pr.source_branch_exists? %>
+              <div class='row'>
+                <div class='col text-right'>
+                  <button type='button' class='btn btn-danger' onclick="ChangeLoadingCnt(1);DoMMAction('delete')">
+                    <span class='octicon octicon-trashcan'></span> Delete Source Branches
+                  </button>
+                </div>
+              </div>
+            <% end %>
+          <% else %>
+            <div class='row'>
+              <div class='col text-right'>
+                <button id="saveChangesButton" type='submit' class='btn btn-success' onclick="ChangeLoadingCnt(1);">
+                  <span class='octicon octicon-arrow-down'></span> Save and Update
+                </button>
+              </div>
+            </div>
+            <% if(@pr.megamergeable? && !@pr.children_outdated? && !@pr.outdated?) %>
+            <div class='row'>
+              <div class='col text-right'>
+                <button id="performMegaMergeButton" type='button' class='btn btn-info' onclick="ChangeLoadingCnt(1);DoMMAction('merge');">
+                  <span class='octicon octicon-git-pull-request'></span> Perform Mega Merge
+                </button>
+              </div>
+            </div>
+            <% end %>
+          <% end %>
+        </div>
+      </div>
+    </div>
+</div>
+
+
+<% end %>
+
+<%= javascript_tag do %>
+
+  var organization = '<%= @pr.repository.organization %>';
+  var repository = '<%= @pr.repository.repository %>';
+  var config_file = '<%= @pr.config_file %>';
+  var pr_id = <%= @pr.id || 0 %>;
+  var pr_outdated = <%= (@pr.outdated? || @pr.children_outdated?) %>;
+  var github_base_url = '<%= github_base_url %>';
+
+  <% @pr.sub_repo_actions.each do |repo, change| %>
+    AddSubRepoAction({
+      organization: "<%= change.organization %>",
+      repository: "<%= change.repository %>",
+      action: <%= change.action %>,
+      ref: "<%= change.ref %>",
+      done: <%= change.done? %>
+    });
+  <% end %>
+
+  <% @children.each do |child| %>
+    AddOrUpdateSubRepo({
+      organization: "<%=child.repository.organization%>",
+      repository: "<%=child.repository.repository%>",
+      source_branch: "<%=child.source_branch%>",
+      target_branch: "<%=child.target_branch%>",
+      pull_id: <%=child.id%>,
+      removeable: <%=child.removeable?%>
+    });
+  <% end %>
+
+<% end %>

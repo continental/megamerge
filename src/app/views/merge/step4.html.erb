@@ -1,0 +1,93 @@
+<%# Copyright (c) 2018 Continental Automotive GmbH
+  #
+  # Licensed under the Apache License, Version 2.0 (the "License");
+  # you may not use this file except in compliance with the License.
+  # You may obtain a copy of the License at
+  #
+  #   http://www.apache.org/licenses/LICENSE-2.0
+  #
+  # Unless required by applicable law or agreed to in writing, software
+  # distributed under the License is distributed on an "AS IS" BASIS,
+  # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  # See the License for the specific language governing permissions and
+  # limitations under the License.
+  #%>
+
+<div class='container'>
+  <div class='card'>
+    <div class='card-header'>
+          <a href="/">Home</a>
+          <span class="octicon octicon-chevron-right mySeparator"></span>
+          <a href="/create/<%= params[:organization]%>"><%= params[:organization]%></a>
+          <span class="octicon octicon-chevron-right mySeparator"></span>
+          <a href="/create/<%= params[:organization]%>/<%= params[:repository]%>"><%= params[:repository]%></a>
+          <span class="octicon octicon-chevron-right mySeparator"></span>
+
+    </div>
+
+    <div class='card-body'>
+      <div class='row'>
+        <div class='col-sm-3'>Organization</div>
+        <div class='col-sm'>
+          <%= params[:organization] %>
+        </div>
+      </div>
+      <br>
+      <div class='row'>
+        <div class='col-sm-3'>Meta Repository</div>
+        <div class='col-sm'>
+          <%= params[:repository] %>
+        </div>
+      </div>
+      <br>
+      <div class='row'>
+        <div class='col-sm-3'>Source Branch</div>
+        <div class='col-sm'>
+          <%= params[:source_branch] %>
+        </div>
+      </div>
+      <br>
+      <div class='row'>
+        <div class='col-sm-3'>Target Branch</div>
+        <div class='col-sm'>
+          <%= params[:target_branch] %>
+        </div>
+      </div>
+      <br>
+      <br>
+      <br>
+      <br>
+      <div class='form-group row'>
+        <label class="col-sm-3 col-form-label">Select the <strong>file</strong> in which the adaptions should be made</label>
+        <div class='col-sm col-form-label'>
+          <select id="fileSelect" style="width:100%" onchange="" class="select2">
+            <% @files.each do |name| %>
+              <option <%= name %> <%= (name=="default.xml" ? "selected" : "")%>><%= name %></option>
+            <% end %>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class='col-sm text-right'>
+          <button id="continue" type='submit' onclick="NextPage()" class='btn btn-success'>
+            Continue <span class='octicon octicon-arrow-right'></span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<%= javascript_tag do %>
+$(document).ready(function() {
+    $('.select2').select2({
+      theme: 'bootstrap',
+    });
+});
+
+function NextPage() {
+  window.location.href = '<%= step3_path(params[:organization], params[:repository]) + '/' + u(params[:source_branch]) + '/' + u(params[:target_branch]) %>'+"/"+$('#fileSelect').val();
+}
+
+<% end %>

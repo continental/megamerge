@@ -1,14 +1,76 @@
+<%# Copyright (c) 2018 Continental Automotive GmbH
+  #
+  # Licensed under the Apache License, Version 2.0 (the "License");
+  # you may not use this file except in compliance with the License.
+  # You may obtain a copy of the License at
+  #
+  #   http://www.apache.org/licenses/LICENSE-2.0
+  #
+  # Unless required by applicable law or agreed to in writing, software
+  # distributed under the License is distributed on an "AS IS" BASIS,
+  # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  # See the License for the specific language governing permissions and
+  # limitations under the License.
+  #%>
+
 <!DOCTYPE html>
 <html>
   <head>
     <title>Megamerge</title>
+    <meta charset='utf-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1, shrink-to-fit=no'>
     <%= csrf_meta_tags %>
-
-    <%= stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track': 'reload' %>
-    <%= javascript_include_tag 'application', 'data-turbolinks-track': 'reload' %>
+    <%= stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track' => true %>
+    <%= javascript_include_tag 'application', 'data-turbolinks-track' => true %>
+    <%= yield :javascript_includes %>
   </head>
+<style>
+
+.mySeparator {
+  margin-right:5px;
+  margin-left:5px;
+}
+
+
+</style>
 
   <body>
+    <div class="container-fluid">
+      <div class="row" style="margin-top:5px">
+        <div class="col-sm-2"></div>
+        <div class="col-sm-8">
+          <h1 class='display-2 text-center'>
+            Mega Merge
+            <span style='font-size: 75px' class='octicon octicon-mark-github'></span>
+          </h1>
+          <h3 class='text-center'>A Multi-Pull-Request Workflow for GitHub</h3>
+        </div>
+        <div class="col-sm-2 text-right">
+          <% if @user %>
+                <div style="display: inline-block;">
+                  <p style="margin-top:10px"><%= @user.user.name =%></p>
+                </div>
+                <div style="display: inline-block;">
+                  <%= button_to 'Logout', { :controller => :session, :action => :logout }, :method => :get, :class => 'btn btn-danger' %>
+                </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+
+    <% flash.each do |key, value| %>
+      <div class="alert alert-<%= key %>"><%= value %></div>
+    <% end %>
+    <br>
+
     <%= yield %>
+    <br>
+    <br><br>
+    <div style='position:fixed;bottom:0;' class="footer">
+      <div class='col-md-auto' style='font-family:monospace;'>
+        MEGAMERGE <%= Rails.application.config.version_number  %> - <span style="color:red">Do you need help? <a href="<%= Rails.application.config.manual %>">Click Here!</a></span>
+      </div>
+    </div>
   </body>
 </html>
