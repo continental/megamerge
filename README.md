@@ -3,7 +3,7 @@
 ## Deployment Guide
 The application will be packed into a Container including all sources as well as the ruby runtime.
 * To generate the Container do `docker build . -t megamerge`.
-* If you added files to the `Gemfile` you will need to repopulate your `Gemfile.lock`. This is done by outing the current folder into the Container ans calling the `bundler install`. Complete call: `docker run -it --rm -v ${PWD}:/srv -w /srv/ megamerge bundle install`
+* If you added files to the `Gemfile` you will need to repopulate your `Gemfile.lock`. This is done by mounting the current folder into the Container and calling the `bundler install`. Complete call: `docker run -it --rm -v ${PWD}:/srv -w /srv/ megamerge bundle install`
 
 ## Development Guide
 The container will open a port on http://localhost:3000 service the application. Also this will be linked to the GITHub test application ID.
