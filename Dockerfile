@@ -12,33 +12,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM ubuntu:16.04
+FROM ruby:2.5
+
+ENV INSTALL_DIR="/megamerge"
 
 RUN set -xe \
   && apt-get update \
   && apt-get install -y --no-install-recommends --no-install-suggests \
-    ruby \
-    ruby-dev \
-    ruby-bundler \
     build-essential \
-    zlib1g-dev \
-    libsqlite3-dev \
     nodejs \
-    git \
-    libffi-dev \
   \
-  && gem install \
-    bundler \
-  \
-  && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-COPY ./src/Gemfile /tmp
-WORKDIR /tmp
-RUN bundle install
+RUN mkdir -p $INSTALL_DIR
+WORKDIR $INSTALL_DIR
 
-COPY ./src /srv/
-WORKDIR /srv/
-RUN bundle install
+COPY src/Gemfile src/Gemfile.lock ./
+RUN gem install bundler \
+  && bundle install --jobs 20 --retry 5
+
+COPY ./src ./
 
 EXPOSE 3000
-CMD ["/usr/local/bin/rails", "server", "-b", "0.0.0.0"]
+ENTRYPOINT ["bundle", "exec"]
+CMD ["rails", "server", "-b", "0.0.0.0"]
