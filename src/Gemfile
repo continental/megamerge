@@ -5,11 +5,12 @@ git_source(:github) do |repo_name|
   "https://github.com/#{repo_name}.git"
 end
 
+gem 'pg'
 
 # Bundle edge Rails instead: gem 'rails', github: 'rails/rails'
-gem 'rails', '~> 4.2.10'
+gem 'rails', '~> 5.2.1'
 # Use Puma as the app server
-gem 'puma', '~> 3.7'
+gem 'puma', '~> 3.11'
 # Use SCSS for stylesheets
 gem 'sass-rails', '~> 5.0'
 # Use Uglifier as compressor for JavaScript assets
@@ -22,14 +23,19 @@ gem 'addressable'
 
 gem 'autoprefixer-rails', '~> 8.6'
 
-# Use CoffeeScript for .coffee assets and views
-gem 'coffee-rails', '~> 4.2'
 # Turbolinks makes navigating your web application faster. Read more: https://github.com/turbolinks/turbolinks
 gem 'turbolinks', '~> 5'
 # Build JSON APIs with ease. Read more: https://github.com/rails/jbuilder
 gem 'jbuilder', '~> 2.5'
 # Use Redis adapter to run Action Cable in production
 # gem 'redis', '~> 3.0'
+
+gem 'bootsnap'
+
+# Better logging
+gem "lograge"
+
+gem 'logstash-logger'
 
 # Use Capistrano for deployment
 # gem 'capistrano-rails', group: :development
@@ -40,13 +46,13 @@ group :development, :test do
   # Adds support for Capybara system testing and selenium driver
   gem 'capybara', '~> 2.13'
   gem 'selenium-webdriver'
-  gem 'rspec-rails', '~> 3.7'
+  gem 'rspec-rails'
   gem 'rack_session_access'
 end
 
 group :development do
   # Access an IRB console on exception pages or by using <%= console %> anywhere in the code.
-  gem 'web-console', '>= 3.3.0'
+  gem 'web-console'
   gem 'listen', '>= 3.0.5', '< 3.2'
   # Spring speeds up development by keeping your application running in the background. Read more: https://github.com/rails/spring
   gem 'spring'
@@ -65,10 +71,16 @@ gem 'popper_js'
 gem 'select2-rails'
 
 # icons
-gem 'octicons-rails'
+gem 'octicons-rails', github: 'mgi166/octicons-rails', branch: 'change-railties-dependency'
 
 # GitHub
-gem 'octokit', '~> 4.8'
+gem 'octokit', '~> 4.21'
+
+# Caching
+gem 'faraday-http-cache'
+
+# Parallel
+gem 'parallel'
 
 # xml parser
 gem 'nokogiri'
@@ -77,3 +89,6 @@ gem 'nokogiri'
 gem 'inifile'
 
 gem 'jwt'
+
+# request global cache
+gem 'request_store'

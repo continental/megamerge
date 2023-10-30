@@ -1,31 +1,198 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2018 Continental Automotive GmbH
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+require_dependency 'git_hub/bot'
 
 module Api
   module V1
-    class PullController < ActionController::Base
+    class PullController < ApplicationController
       skip_before_action :require_login
       skip_before_action :verify_authenticity_token
+      before_action :check_bearer
 
-      def get_pull
-        pr = Api::ParentPull.call(params[:organization], params[:repository], params[:pull_id])
+      rescue_from StandardError, with: :error_generic
+      rescue_from Octokit::Error, with: :error_octokit
+      rescue_from ActionController::ParameterMissing, with: :error_parameter
 
-        respond_to do |format|
-          format.json { render json: PullRequestSerializer.from_pull_request(pr).to_json }
+      # TODO: Add parameter validation
+
+      def pull
+        pr = Api::ParentPull.call(params[:organization], params[:repository], params[:number])
+        return render json: { error: 'Not a megamerge pull request' }, status: :not_found if pr.nil?
+
+        render json: PullRequestSerializer.from_pull_request(pr)
+      end
+
+      def create
+        params = create_params
+
+        pr = SaveMegaMergeState.call(
+          user,
+          params[:meta_repo],
+          params[:sub_repos]
+        )
+
+        return render json: { message: 'Missing access rights' }, status: :unauthorized if pr.nil?
+        
+        # fix: additional load/API call, else wrong init values might taken for json
+        pr_json = PullRequestSerializer.from_pull_request(pr).to_json
+        pr = Api::ParentPull.call(params[:organization], params[:repository], JSON.parse(pr_json)['id'])
+        render json: PullRequestSerializer.from_pull_request(pr)
+      end
+      
+      def update_config_file
+        begin
+          # use API to trigger config file update procedure.
+          # Check if the requested MM PR is updated with the latest hashes and optionally do the update if needed
+          meta_pr_slug = params[:organization]+'/'+params[:repository]+'/'+params[:number]
+          logger.info "checking #{meta_pr_slug} because its was triggered by API call"
+          meta_pr = MetaPullRequest.load(params[:organization], params[:repository], params[:number])
+
+          if meta_pr.config_outdated?
+            commit_hash = meta_pr.update_config_file!
+            update_status = commit_hash.nil? ? "ERROR" : "OK" # if commit failed error, else ok
+            logger.info "updating #{meta_pr.slug} to #{commit_hash}"  # log new hash
+          else
+            update_status = 'OK'
+          end
+
+          return render json: { 'result': update_status }
+        # Rescues any error, an puts the exception object in `e`
+        rescue => e
+          if e.message.include? "rate limit"  # e.class == Octokit::Forbidden error
+            render json: { result: "RATELIMIT", details: "MegaMerge got too many API calls at once" }
+          else
+            render json:{ result: "ERROR", details: e.message }
+          end
+
         end
+      end
+
+      def check_rate_limit
+        @rep = params[:repository]
+        @org = params[:organization]
+        @prid = params[:pull_id]
+
+        def  gql_ratelimit_query
+            "
+            viewer {
+              login
+            }
+            rateLimit {
+              limit
+              cost
+              remaining
+              resetAt
+            }
+            "
+        end
+        
+        # API rate limit for bot client
+        @bot_client ||= GitHub::Bot.from_organization(@org)
+        @rate_limit_bot ||=@bot_client.rate_limit()
+        @rate_limit_remaining_bot ||=@bot_client.rate_limit.remaining().to_json
+
+        # API rate limit for current user
+        @rate_limit_user ||=@user.rate_limit()
+        @rate_limit_remaining_user ||=@user.rate_limit.remaining().to_json
+
+        #GraphQL limit for current user
+        _gql_ratelimit_query = gql_ratelimit_query()
+        GitHub::GQL.add("#{@org}/#{@rep}", GitHub::GQL.QUERY, _gql_ratelimit_query)
+        @gql_response = GitHub::GQL.execute
+
+        #GraphQl limit for bot client
+        if (@bot_client.last_response)
+          @gql_rate_bot = @bot_client.last_response.data[:resources][:graphql]
+        end
+
+        return render json:{ User_Rate_Limit_Remaining: @rate_limit_remaining_user, GQL_User_Rate_Limit_Remaining: @gql_response, Bot_Rate_Limit_Remaining: @rate_limit_remaining_bot, GQL_Bot_Rate_Limit_Remaining: @gql_rate_bot }
+
+      end
+
+      def commit_message
+        pr = Api::ParentPull.call(params[:organization], params[:repository], params[:number])
+        return render json: { error: 'Not a megamerge pull request' }, status: :not_found if pr.nil?
+
+        pr.merge_commit_message = commit_message_params
+
+        with_flock(pr.slug) do
+          pr.write_own_state!
+        end
+
+        render json: PullRequestSerializer.from_pull_request(pr)
+      end
+
+      def ready_for_review
+        meta_pr = MetaPullRequest.load(params[:organization], params[:repository], params[:number])
+        meta_pr.set_draft_state!(false)
+        meta_pr.update_config_file!
+
+        return render json:{ Draft: false }
+      end
+
+      private
+
+      def user
+        @user ||= GitHub::User.new(bearer_token)
+      end
+
+      def commit_message_params
+        params.require(:message)
+      end
+
+      def create_params
+        params[:meta_repo] = meta_repo_params.to_enum.to_h
+        params[:sub_repos] = sub_repos_params[:sub_repos]
+
+        params
+      end
+
+      def meta_repo_params
+        meta_params =
+          params
+          .require(:meta_repo)
+          .permit(:source_branch, :target_branch, :title, :body, :config_file, :merge_commit_message)
+          .tap do |meta_repo_params|
+            meta_repo_params.require(%i[source_branch target_branch title config_file])
+          end
+
+        meta_params[:organization] = params[:organization]
+        meta_params[:repository] = params[:repository]
+
+        meta_params
+      end
+
+      def sub_repos_params
+        params[:sub_repos] ||= []
+        params.permit(sub_repos: %i[organization repository source_branch target_branch config_file])
+      end
+
+      def check_bearer
+        if bearer_token
+          RequestStore.store[:client] = user.client
+        else
+          render json: { error: 'Missing bearer token', status: :unauthorized }
+        end
+      end
+
+      def bearer_token
+        return @bearer_token if @bearer_token
+
+        pattern = /^Bearer /
+        header = request.headers['Authorization']
+        @bearer_token ||= header.gsub(pattern, '') if header&.match(pattern)
+      end
+
+      def error_generic(err)
+        render json: { message: err }, status: :internal_server_error
+      end
+
+      def error_octokit(err)
+        render json: err.response_body, status: err.response_status
+      end
+
+      def error_parameter(err)
+        render json: { message: err }, status: :bad_request
       end
     end
   end

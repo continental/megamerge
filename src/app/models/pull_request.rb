@@ -22,47 +22,82 @@ class PullRequest < BaseModel
   include PullRequest::Actions
 
   def self.from_params(params)
-    new(keep_attributes(params)
-      .merge(
-        id: params[:pull_id],
-        repository: Repository.from_params(params)
-      ))
+    pr = new(keep_attributes(params))
+    
+    pr.id = params[:pull_id]
+    pr.repository = Repository.new(organization: params[:organization], repository: params[:repository]) if pr.repository.kind_of?(String)
+    pr.source_repository = Repository.from_name(params[:source_repo_full_name])
+    
+    pr
   end
 
   def self.from_github_data(data)
+    repo = Repository.from_github_data(data[:base][:repo])
     new(
       id: data[:number],
-      repository: Repository.from_name(data[:head][:repo][:full_name]),
+      repository: repo,
       title: data[:title],
       body: data[:body],
       source_branch: data[:head][:ref],
       source_branch_sha: data[:head][:sha],
+      source_repository: Repository.from_github_data(data[:head][:repo]),
       target_branch: data[:base][:ref],
       mergeable: data[:mergeable],
       merged: data[:merged],
       mergeable_state: data[:mergeable_state],
       merge_commit_sha: data[:merge_commit_sha],
-      state: data[:state]
+      state: data[:state],
+      author: User.from_github_data(repo.client, data[:user]),
+      object_id: data[:node_id],
+      draft: data[:draft]
     )
   end
 
-  def self.from_child_decoding(decoded, parent)
+  def self.from_gql(data)
+    logger.info "pr from gql #{data[:number]}"
+    source_repo = repo = Repository.from_gql(data[:baseRepository])
+    source_repo = Repository.from_name(data[:headRepository][:nameWithOwner]) unless data[:baseRepository][:nameWithOwner].eql? data[:headRepository][:nameWithOwner]
     pr = new(
-      id: decoded[:id],
-      repository: Repository.from_name(decoded[:name]),
-      parent: parent
-    ).refresh!
-    pr.body = decoded[:body]
+      id: data[:number],
+      repository: repo,
+      title: data[:title],
+      body: data[:body],
+      source_branch: data[:headRefName],
+      source_branch_sha: data[:headRefOid],
+      source_branch_object_id: data.dig(:headRef, :id),
+      source_repository: source_repo,
+      target_branch: data[:baseRefName],
+      mergeable: data[:mergeable].downcase,
+      merged: data[:merged],
+      mergeable_state: data[:mergeStateStatus].downcase,
+      merge_commit_sha: data[:mergeCommit].nil? ? data.dig(:potentialMergeCommit, :oid) : data.dig(:mergeCommit, :oid),
+      state: data[:state].downcase,
+      author: User.from_gql(repo.client, data[:author]),
+      object_id: data[:id],
+      required_checks: [
+          data[:baseRef].dig(:refUpdateRule, :requiredStatusCheckContexts),     # filled only in non-admin
+          data[:baseRef].dig(:branchProtectionRule, :requiredStatusCheckContexts)  # filled only in admin
+        ].compact.reduce([], :|), # remove nil and duplicates and flatten the resulting array
+      review_decision: data[:reviewDecision]&.downcase,
+      commits: data[:commits][:nodes],
+      draft: data[:isDraft]
+    )
+    
+    # api v3 compatible
+    pr.commits.each{|commit| commit[:sha] = commit[:commit][:sha]}
+
     pr
   end
 
   attr_writer :target_branch, :source_branch, :shadow_branch
-  attr_accessor :parent
-  attr_accessor :repository, :title, :body, :merge_commit_sha, :source_branch_sha
-  attr_accessor :merged, :mergeable, :mergeable_state, :state
+  attr_writer :source_branch_sha, :source_repository
+
+  attr_accessor :repository, :title, :body, :parent, :merge_commit_message, :commits, :merge_commit_sha
+  attr_accessor :merged, :mergeable, :mergeable_state, :state, :author, :object_id, :review_decision
+  attr_accessor :source_branch_object_id, :draft, :config_file, :required_checks
 
   attribute_method_suffix '?'
-  define_attribute_methods :mergeable, :squash, :merged, :removeable, :parent
+  define_attribute_methods :squash, :merged, :removeable, :parent
 
   validates! :repository, presence: true
   validates :id, pull_request_number: true
@@ -79,12 +114,36 @@ class PullRequest < BaseModel
     value.present? && value.to_i.positive?
   end
 
+  def simple_name
+    slug.gsub(/[^0-9A-Za-z]/, '')
+  end
+
   def id?
     self.class.id?(id)
   end
 
+  def merge_commit_sha
+    return @merge_commit_sha unless @merge_commit_sha.nil?
+    return 0 unless id?
+
+    @merge_commit_sha ||= repository.pull_request(id)[:merge_commit_sha]
+  end
+
   def exists?
     id? && repository.pull_request_exists?(id)
+  end
+
+  def full_identifier
+    repository.name + "/" + config_file.to_s
+  end
+
+
+  def from_fork?
+    repository.name != source_repository.name
+  end
+
+  def source_repository
+    @source_repository ||= repository
   end
 
   def target_branch
@@ -99,59 +158,150 @@ class PullRequest < BaseModel
     @removeable = (value.is_a?(String) && value == 'true') || (!!value == value && value)
   end
 
+  def draft?
+    return draft.to_b unless draft.nil?
+    true
+  end
+
   def squash
-    @squash.bool? ? @squash : true
+    return true unless repository.allow_merge_commit
+    return false unless repository.allow_squash_merge
+    return true unless @squash.bool? # default value
+    @squash
   end
 
   def squash=(value)
-    @squash = if value.bool?
-                value
-              elsif value.is_a? String
-                value != 'false'
-              else
-                true
-              end
+    @squash =
+      if value.bool?
+        value
+      elsif value.is_a? String
+        value != 'false'
+      else
+        true
+      end
   end
 
   def status
-    if id?
-      @status ||= existing_status
-    elsif shadow_branch_exists? && !branch_has_mergeable_commits?
-      @status ||= { text: 'Source and Target are the same', color: 'danger' }
-    else
-      @status ||= { text: 'OK', color: 'muted' }
+    return @status unless @status.nil?
+
+    @status ||=
+      if id?
+        existing_status
+      elsif shadow_branch_exists? && !source_branch_has_mergeable_commits?
+        { text: 'Source and Target are the same', color: 'danger', blocking: true }
+      else
+        { text: 'OK', color: 'muted' }
+      end
+  end
+
+  def create_gql_set_draft_state(state)
+
+    hash = "h_" +SecureRandom.alphanumeric(10)
+
+    if false # convertPullRequestToDraft not supported by our server?!
+      "
+      #{hash}: convertPullRequestToDraft(
+        input: {pullRequestId: \"#{object_id}\"}
+      ){ clientMutationId }
+      "
+    elsif state == false
+      "
+      #{hash}: markPullRequestReadyForReview(
+        input: {pullRequestId: \"#{object_id}\"}
+      ){ clientMutationId }
+      "
     end
   end
 
+  def self.create_gql_query(key, repoFullName, pullId, fields = nil)
+    org, repo = repoFullName.split('/')
+
+    fields = gql_pr_fields if fields.nil?
+    query =
+      "#{key}: repository(owner: \"#{org}\", name: \"#{repo}\") {
+        pullRequest(number: #{pullId}) {
+        " + fields + "
+        }
+      }"
+  end
+
+  def self.gql_pr_fields
+    "
+    title
+    body
+    id
+    number
+    headRefName
+    headRefOid
+    headRef {
+      id
+    }
+    headRepository {
+      nameWithOwner
+    }
+    baseRef {
+      refUpdateRule {
+        requiredStatusCheckContexts   
+      }
+      branchProtectionRule  {
+        requiredStatusCheckContexts  
+      }
+    }
+    baseRefName
+    baseRepository {
+    " + Repository.gql_query_params + "
+    }
+    author {
+      login
+    }
+    isDraft
+    mergeable
+    merged
+    mergeStateStatus
+    mergeCommit {
+      oid
+    }
+    potentialMergeCommit  {
+      oid
+    }
+    state
+    reviewDecision 
+    commits(first: 250) {
+      nodes {
+        commit {
+          message
+          sha: oid
+          tree {
+            sha: oid
+          }
+        }
+      }
+    }
+    "
+  end
+
   def source_branch
-    @source_branch.presence || repository.default_branch
+    @source_branch.presence || source_repository.default_branch
   end
 
   def shadow_branch
-    @shadow_branch.presence || source_branch
+    source_branch
   end
 
   def source_branch_exists?
-    @source_branch_exists ||= repository.branch_exists?(source_branch)
+    @source_branch_exists ||= source_repository.branch_exists?(source_branch)
   end
 
   def shadow_branch_exists?
-    @shadow_branch_exists ||= repository.branch_exists?(shadow_branch)
+    source_branch_exists?
   end
 
-  def branch_has_mergeable_commits?
-    repository.branch_ahead?(target_branch, shadow_branch)
+  def source_branch_has_mergeable_commits?
+    repository.branch_ahead?(target_branch, source_repository.owner + ":" + shadow_branch)
   end
 
-  def branches_identical?
-    repository.branches_identical?(shadow_branch, target_branch)
-  end
-
-  def outdated?
-    @outdated ||= !closed? &&
-                  source_branch_exists? &&
-                  shadow_branch_exists? &&
-                  repository.branch_ahead?(shadow_branch, source_branch)
+  def commits
+    @commits ||= repository.pull_request_commits(id)
   end
 
   def slug(delim: '/')
@@ -184,24 +334,90 @@ class PullRequest < BaseModel
     mergeable_state == 'dirty'
   end
 
+  def behind?
+    mergeable_state == 'behind'
+  end
+
   def closed?
     state == 'closed'
   end
 
+  def changes_requested?
+    review_decision == 'changes_requested'
+  end
+
+  def pending_review?
+    review_decision == 'review_required'
+  end
+
+  def reviews_done?
+    review_decision.nil? || review_decision == 'approved'
+  end
+
   def saveable?
-    status[:text] != 'Source and Target are the same'
+    !status[:blocking]
+  end
+
+  def mergeable?
+    return false if id == 0 || merged? || closed?
+
+    4.times { |c|
+      res = check_mergeable
+      return res unless res.nil?
+      logger.info("Mergable was not yet computed by GitHub")
+      sleep(2 * c)
+      GitHub::GQL.add(repository.name, GitHub::GQL.QUERY, PullRequest.create_gql_query('mergeable', repository.name, id, 'mergeable'))
+      (self.mergeable = GitHub::GQL.execute[:mergeable][:pullRequest][:mergeable].downcase)
+    }
+    nil
+  end
+
+  def check_mergeable
+    if mergeable.bool?
+      mergeable
+    elsif mergeable == 'true' || mergeable == 'mergeable'
+      true
+    elsif mergeable == 'false' || mergeable == 'conflicting'
+      false
+    elsif mergeable == 'null' || mergeable == 'nil' || mergeable == 'unknown'
+      nil
+    end
   end
 
   def megamergeable?
-    mergeable? && !blocked? && !dirty? && !closed?
+    mergeable? && !blocked? && !dirty? && !closed? && !behind? && !draft? && !state_unknown?
   end
 
-  def pr_statuses
-    @pr_statuses ||= PullRequestStatuses.from_github_data(repository.combined_status(source_branch_sha), repository.branch_protection(target_branch))
+  def merge_conflict?
+    !mergeable? && dirty?
+  end
+
+  def source_branch_sha
+    @source_branch_sha ||= repository.commit(source_branch).sha
+  end
+
+  def status_collection
+    @status_collection ||= PullRequestStatuses.from_github_data(repository.combined_status(source_branch_sha))
   end
 
   def pr_reviews
     @pr_reviews ||= PullRequestReviews.from_github_data(repository.pull_request_reviews(id))
+  end
+
+  def readable_mergeability
+    <<~TEXT
+      #{slug}
+      -- mergeable => #{mergeable?}
+      -- mergeable_state => #{mergeable_state}
+      -- blocked => #{blocked?}
+      -- dirty => #{dirty?}
+      -- closed => #{closed?}
+      -- behind => #{behind?}
+      -- reviews_done => #{reviews_done?}
+      -- review_decision => #{review_decision}
+      -- draft => #{draft?}
+      -- unknown => #{state_unknown?}
+    TEXT
   end
 
   private
@@ -211,22 +427,32 @@ class PullRequest < BaseModel
       { text: 'Merged', color: 'success' }
     elsif closed?
       { text: 'Closed', color: 'danger' }
-    elsif !mergeable? && dirty?
+    elsif merge_conflict?
       { text: 'Merge conflicts', color: 'danger' }
+    elsif draft?
+      { text: 'PR is in draft state', color: 'warning' }
     elsif mergeable? && blocked?
-      if pr_statuses.blocking?
-        {
-          text: 'Waiting for checks',
-          color: 'warning',
-          checks: pr_statuses.statuses.map { |status| { context: status.context, target_url: status.target_url } }
-        }
-      elsif repository.branch_protection(target_branch)[:required_pull_request_reviews]
+      if pending_review?
         { text: 'Waiting for review', color: 'warning' }
+      elsif changes_requested?
+        { text: 'Review requested changes', color: 'warning' }
+      elsif required_checks.nil?
+        { text: '?', color: 'muted' }
+      elsif status_collection.missing_checks(required_checks).present?
+        {
+          text: 'Waiting for status checks',
+          color: 'warning',
+          checks: status_collection.missing_checks(required_checks)
+        }
       else
-        { text: 'Unknown blocking reason', color: 'muted'}
+        { text: 'No rights to merge', color: 'danger' }
       end
+    elsif mergeable? && behind?
+      { text: 'Branch is behind', color: 'danger' }
     elsif mergeable?
-      { text: 'Mergeable', color: 'info' }
+      { text: 'Will be merged', color: 'info' }
+    elsif mergeable?.nil?
+      { text: 'GitHub is still computing', color: 'warning' }
     else
       { text: 'Unknown', color: 'danger' }
     end

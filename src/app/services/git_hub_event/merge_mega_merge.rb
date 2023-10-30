@@ -15,55 +15,20 @@
 # limitations under the License.
 
 module GitHubEvent
-  class MergeMegaMerge
-    include Callable
-    include Loggable
+  class MergeMegaMerge < EventProcessor
 
-    def initialize(payload)
-      @payload = payload
+    def self.execute(org, repo, id)
+      meta_pr_slug = org+'/'+repo+'/'+id
+      logger.info "trying to megamerge of #{meta_pr_slug}"
+      with_flock(org+'/'+repo) do
+        meta_pr = MetaPullRequest.load(org,repo,id)
+        meta_pr.try_merge!
+      end
     end
 
-    def call
-      logger.info "MergeMegaMerge: #{parent_pull_request&.id}"
-      return 'Not a mega merge pr' if parent_pull_request.nil?
-      return 'Parent not megamergeable' if parent_pull_request.merge_state!.nil?
-      logger.info "MergeMegaMerge merged: #{parent_pull_request&.id}"
-
-      %W[
-        doing finalmerge of PR
-        #{parent_pull_request.id} in #{parent_pull_request.repository.name}
-      ].join(' ')
+    def pulls
+      return [payload[:pull_request]]
     end
-
-    private
-
-    attr_accessor :payload
-
-    def parent_pull_request
-      return nil if parent_body.nil? && child_body.nil?
-      return @parent_pull_request ||= MetaPullRequest.from_pull_request(pull_request) if parent_body
-      parent = MetaPullRequest.from_parent_decoding(child_body[:config]).refresh!
-      @parent_pull_request ||= parent.fill_from_decoded!(MegaMerge::ParentDecoder.decode(parent.body))
-    end
-
-    def pull_request
-      @pull_request ||= payload[:pull_request]
-    end
-
-    def parent_body
-      @parent_body ||= MegaMerge::ParentDecoder.decode(pull_request_body)
-    end
-
-    def child_body
-      @child_body ||= MegaMerge::ChildDecoder.decode(pull_request_body)
-    end
-
-    def pull_request_body
-      payload[:pull_request][:body]
-    end
-
-    def repository
-      @repository ||= Repository.from_name(payload[:repository][:full_name])
-    end
+ 
   end
 end

@@ -33,7 +33,10 @@ module MegaMerge
         [
           header,
           children_body,
-          "\n\nDo **NOT** push on `#{@meta_pr.shadow_branch}` branch directly! Use `#{@meta_pr.source_branch}` instead!"
+          "\n\n:x: Do **NOT** press the _merge button_ down below!
+            \n:x: Do **NOT** delete this description, but add your optional description above this generated content!
+            \n:x: Do **NOT** set this PR ready_for_review from GitHub GUI, use MM GUI instead!"
+
         ]
       end
     end
@@ -46,22 +49,26 @@ module MegaMerge
         config_file: meta_pr.config_file,
         source_branch: meta_pr.source_branch,
         squash: meta_pr.squash?,
-        sub_repo_actions: meta_pr.child_actions,
-        children: children.map { |child| encode_child(child) }
+        automerge: meta_pr.automerge?,
+        merge_commit_message: meta_pr.merge_commit_message,
+        children: children.map { |child| encode_child(child) },
+        api_url: "#{Rails.application.config.url}/api/v1"
       }
     end
 
     def encode_child(child)
       {
         id: child.id,
-        name: child.repository.name
+        name: child.repository.name,
+        squash: child.squash?,
+        config_file: child.config_file
       }
     end
 
     def header
       <<~HEADER
         ---
-        ## Mega Merge
+        ## Mega Merge :tm:
         #{Rails.application.config.url}/view/#{meta_pr.slug}
       HEADER
     end

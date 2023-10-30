@@ -17,27 +17,25 @@
 class PullRequest
   # Represents the a combined pull request status
   class PullRequestStatuses < BaseModel
-    def self.from_github_data(pr_statuses, branch_protection)
+    def self.from_github_data(pr_statuses)
       new(
         sha: pr_statuses[:sha],
         total_count: pr_statuses[:total_count],
         statuses: pr_statuses[:statuses].map { |status| parent::PullRequestStatus.from_github_data(status) },
         state: pr_statuses[:state],
-        required_contexts: branch_protection.try(:required_status_checks).try(:contexts)
       )
     end
 
     attr_accessor :sha, :total_count, :statuses, :state, :required_contexts
 
-
-    def blocking?
-      required_contexts&.each do |context|
-        status = statuses.detect{|status| status.context == context }
-        return true if (status.nil? || !status.success?)
+    def missing_checks(required_checks)
+      @missing_checks||= required_checks.filter_map do |check|
+        stat = statuses.find { |status| (status.context.include? check)}
+        next PullRequestStatus.new({:context=> check, :target_url => ""}) if stat.nil?
+        next if stat.success?
+        stat
       end
-      false
     end
 
   end
-
 end

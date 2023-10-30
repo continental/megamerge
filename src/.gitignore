@@ -22,3 +22,9 @@
 
 .byebug_history
 credentials.yml
+
+#RubyMine
+.idea/*
+*.idea
+.idea/
+*.iml

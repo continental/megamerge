@@ -65,14 +65,14 @@ RSpec.feature 'MegaMerges', type: :feature do
 
     it 'should pass step4 by selecting the xml file' do
       visit step4_path organization, repository, source_branch, target_branch
-      select_select2('fileSelect', xml_file)
+      select_select2('file-select', xml_file)
       find_by_id('continue').click
       expect(page).to have_current_path(final_path(organization, repository, source_branch, target_branch, xml_file))
     end
 
     it 'should pass step4 by selecting the gitmodules file' do
       visit step4_path organization, repository, source_branch, target_branch
-      select_select2('fileSelect', gitmodules_file)
+      select_select2('file-select', gitmodules_file)
       find_by_id('continue').click
       expect(page).to have_current_path(final_path(organization, repository, source_branch, target_branch, gitmodules_file))
     end

@@ -25,6 +25,7 @@ class CloseMegaMerge
 
   def call
     return pull_request.close! if meta_pr.nil?
+
     meta_pr.close_state! unless meta_pr.merged?
   end
 

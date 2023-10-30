@@ -20,10 +20,30 @@ module GitHub
     attr_accessor :client
 
     def method_missing(m, *args, &block)
+      tries ||= 3
+      raise "unable to find method #{m}" unless respond_to_missing?(m,true)
       client.send(m, *args, &block)
     rescue Octokit::Unauthorized => e
       raise e unless e.message.include? 'Bad credentials'
       handle_bad_credentials!(e)
+    rescue Faraday::ConnectionFailed => e
+      sleep(1)
+      logger.info "connection failed to #{Rails.application.config.github[:server]}: #{e.message}"
+      retry unless (tries -= 1).zero?
+    rescue Octokit::BadGateway => e
+      logger.info e.message
+      sleep(1)
+      retry unless (tries -= 1).zero?
+    rescue Octokit::TooManyRequests => e
+      logger.info e.message
+      raise "secondary rate limit"
+    rescue Octokit::Error => e # reraise octokit errors
+      raise e
+    rescue StandardError => e # catch everything else
+      sleep(1)
+      logger.info e.message
+      logger.info e.backtrace.to_s
+      retry unless (tries -= 1).zero?
     end
 
     def handle_bad_credentials!(e)
@@ -34,6 +54,7 @@ module GitHub
       client.respond_to?(mid, priv)
     end
 
+
     def self.logger
       Rails.logger
     end
@@ -41,6 +62,7 @@ module GitHub
     def logger
       self.class.logger
     end
+
 
     def self.cache
       Rails.cache

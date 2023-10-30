@@ -18,23 +18,19 @@ module MegaMerge
   module MetaRepository
     class InvalidConfigFileError < StandardError; end
 
-    def self.config_file(file_name, repository, branch)
-      args = {
-        file_name: file_name,
-        repository: repository,
-        branch_name: branch
-      }
-      return GoogleConfig.new(args) if xml_file?(file_name)
-      return GitSubModuleConfig.new(args) if gitmodules_file?(file_name)
-      raise InvalidConfigFileError, file_name
+    def self.create(config_files, repository, branch)
+
+      return GoogleConfig.new(repository, config_files, branch) if xml_file?(config_files)
+      return GitSubModuleConfig.new(repository, config_files, branch) if gitmodules_file?(config_files)
+      raise InvalidConfigFileError, config_files
     end
 
-    def self.xml_file?(file_name)
-      file_name.ends_with?('.xml')
+    def self.xml_file?(config_files)
+      config_files.all? { |file| file.ends_with?('.xml') }
     end
 
-    def self.gitmodules_file?(file_name)
-      file_name == '.gitmodules'
+    def self.gitmodules_file?(config_files)
+      config_files.first == '.gitmodules'
     end
   end
 end

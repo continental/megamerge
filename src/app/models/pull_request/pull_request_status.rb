@@ -25,11 +25,12 @@ class PullRequest
         state: status[:state],
         description: status[:description],
         target_url: status[:target_url],
-        context: status[:context]
+        context: status[:context],
+        name: status[:name]
       )
     end
 
-    attr_accessor :id, :state, :description, :target_url, :context
+    attr_accessor :id, :state, :description, :target_url, :context, :name
 
     def success?
       state == 'success'
@@ -39,10 +40,21 @@ class PullRequest
       context&.starts_with?(MM_STATUS_PREFIX)
     end
 
-    def create!(repository, sha)
+    def create_with_prefix!(repository, sha)
+      logger.info "creating status #{MM_STATUS_PREFIX + context} on #{sha} (#{state})"
       repository.create_status(
         sha, state,
         context: MM_STATUS_PREFIX + context,
+        target_url: target_url,
+        description: description
+      )
+    end
+
+    def create!(repository, sha)
+      logger.info "creating status #{context} on #{sha} (#{state})"
+      repository.create_status(
+        sha, state,
+        context: context,
         target_url: target_url,
         description: description
       )

@@ -17,15 +17,21 @@
 module GitHub
   # Github access over user token
   class User < OctokitProxy
-    def self.token(code)
-      token = Octokit.exchange_code_for_token(code)
+    def self.token(code, options = {})
+      token = Octokit.exchange_code_for_token(
+        code,
+        Rails.application.config.github[:client],
+        Rails.application.config.github[:secret],
+        options
+      )
       token[:access_token]
     end
 
-    attr_accessor :user
+    attr_accessor :user, :client
 
     def initialize(token)
-      @client = Octokit::Client.new(access_token: token)
+      #@client = Octokit::Client.new(access_token: token)
+      @client = OctokitClientProxy.new(access_token: token)
       @user = @client.user
     end
 
@@ -34,8 +40,15 @@ module GitHub
     end
 
     def installation_repositories(organization)
-      id = GitHub::Bot.from_organization(organization).id
-      find_installation_repositories_for_user(id)[:repositories]
+      Rails.cache.fetch(
+        "#{organization}_app_repos",
+        expires_in: 15.minute
+      ) do
+        GitHub::Bot.from_organization(organization).list_app_installation_repositories[:repositories].map do |repo|
+          repo[:name]
+        end
+      end
+      
     end
     alias inst_repos installation_repositories
 

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2018 Continental Automotive GmbH
+# Copyright (c) 2021 Continental Automotive GmbH
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -34,9 +34,10 @@ module GitHub
         data = GitHub::App.new.find_app_installations.find do |install|
           install[:account][:login] == organization
         end
-        data[:id]
+        data&.[](:id)
       end
-      return nil if id.nil?
+      raise "unable to find app installation for org #{organization}" if id.nil?
+
       new(id: id, organization: organization)
     end
 
@@ -53,6 +54,7 @@ module GitHub
     protected
 
     def client
+      
       regen = false
       access_token = cache.fetch(
         :"#{organization}_access_token_#{id}",
@@ -63,9 +65,11 @@ module GitHub
         super.create_app_installation_access_token(id)[:token]
       end
       if regen
-        @client = Octokit::Client.new(access_token: access_token)
+        #@client = Octokit::Client.new(access_token: access_token)
+        @client = OctokitClientProxy.new(access_token: access_token)
       else
-        @client ||= Octokit::Client.new(access_token: access_token)
+        #@client ||= Octokit::Client.new(access_token: access_token)
+        @client ||= OctokitClientProxy.new(access_token: access_token)
       end
     end
 

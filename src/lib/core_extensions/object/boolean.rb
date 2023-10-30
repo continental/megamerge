@@ -21,6 +21,13 @@ module CoreExtensions
       def bool?
         self == true || self == false
       end
+
+      def to_b
+        return self if self.bool?
+        return true if self.eql? 'true'
+        return false if self.eql? 'false'
+        nil
+      end
     end
   end
 end

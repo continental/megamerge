@@ -32,8 +32,8 @@ class BaseModel
   end
 
   def self.keep_attributes(params)
-    params.symbolize_keys.select do |key, _|
-      attribute_method?(key)
+    params.to_unsafe_h.select do |key, _|
+      attribute_method?(key.to_sym)
     end
   end
 
@@ -45,6 +45,7 @@ class BaseModel
   def merge_instance!(other)
     return self if other.nil?
     return self if equal?(other)
+
     other.instance_variables.each do |var|
       instance_variable_set(var, other.instance_variable_get(var))
     end

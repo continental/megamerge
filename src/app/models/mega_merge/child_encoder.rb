@@ -28,7 +28,6 @@ module MegaMerge
     end
 
     def encode
-      pull_request.body if pull_request.parent?
       Encoder.encode(body: pull_request.body, config: configuration) do
         header
       end
@@ -39,9 +38,11 @@ module MegaMerge
     def header
       <<~HEADER
         ---
-        ## MegaMerge
+        ## MegaMerge :tm:
         This Pull Request is part of a MegaMerge Pull Request #{pull_request.parent.md_link}.
-        Do _NOT_ merge by hand unless you know what you are doing!
+        Do **NOT** press the _merge button_ down below!
+        Do **NOT** delete this description, but add your optional description above this generated content!
+        Do **NOT** set this PR ready_for_review from GitHub GUI, use MM GUI instead!
       HEADER
     end
 

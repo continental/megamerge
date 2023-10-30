@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2018 Continental Automotive GmbH
+# Copyright (c) 2022 Continental Automotive GmbH
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 module Api
   class ParentPull
     include Callable
+    include Loggable
 
     def initialize(org, repo, pull_id)
       @org = org
@@ -25,7 +26,7 @@ module Api
     end
 
     def call
-      parent_pull_request || PullRequest.from_github_data(pull_request)
+      parent_pull_request
     end
 
     private
@@ -34,9 +35,8 @@ module Api
 
     def parent_pull_request
       return nil if parent_body.nil? && child_body.nil?
-      return @parent_pull_request ||= MetaPullRequest.from_pull_request(pull_request) if parent_body
-      parent = MetaPullRequest.from_parent_decoding(child_body[:config]).refresh!
-      @parent_pull_request ||= parent.fill_from_decoded!(MegaMerge::ParentDecoder.decode(parent.body))
+      return @parent_pull_request ||= MetaPullRequest.load(org, repo, pull_id) if PullRequest.id?(@pull_id)
+      @parent_pull_request ||= MetaPullRequest.from_parent_decoding(child_body[:config]).refresh! #ToDo might be deleted
     end
 
     def pull_request

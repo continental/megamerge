@@ -2,6 +2,7 @@
 
 require_relative 'boot'
 
+#require 'rails/all'
 require 'action_controller/railtie'
 require 'action_mailer/railtie'
 require 'sprockets/railtie'
@@ -21,6 +22,7 @@ module Megamerges
     config.watchable_dirs['lib'] = [:rb]
     # Initialize configuration defaults for originally generated Rails version.
 
+    config.load_defaults 5.0
     config.action_dispatch.perform_deep_munge = false
 
     # Settings in config/environments/* take precedence over those specified here.
@@ -35,18 +37,22 @@ module Megamerges
       end
     end
 
-    config.version_number = '3.0'
+    config.version_number = '3.9.6'
+    # config.version_number+= '.' + File.read('build_version.txt') if File.exist?('build_version.txt')
+    config.version_hash = 'unknown'
+    config.version_hash = File.read('revision.txt') if File.exist?('revision.txt')
 
-    temp_config = YAML.load_file('credentials.yml')
+    STDERR.puts "credentials.yml file in root folder missing!!!" unless File.exist?('credentials.yml')
+    temp_config = (YAML.load_file('credentials.yml') if File.exist?('credentials.yml')) || {}
     config.url = temp_config['homepage'] || "http://localhost:#{port}"
     config.manual = temp_config['manual'] || "http://localhost:#{port}/howto"
     config.github = {
-      server: temp_config['server'],
-      api: temp_config['api'],
-      app_id: temp_config['app_id'],
-      client: temp_config['client'],
-      secret: temp_config['secret'],
-      private_key: temp_config['private_key']
+      server: temp_config['server'] || 'https://www.github.com',
+      api: temp_config['api'] || 'https://api.github.com',
+      app_id: temp_config['app_id'] || '',
+      client: temp_config['client']|| '',
+      secret: temp_config['secret']|| '',
+      private_key: temp_config['private_key'] || ''
     }
 
     authorize_context = {

@@ -12,19 +12,18 @@
   # See the License for the specific language governing permissions and
   # limitations under the License.
   #%>
-
-<div class='container'>
+<div class='container' id="data"
+  data-organization="<%= params[:organization] %>" data-repository="<%= params[:repository] %>"
+  data-source_branch="<%= params[:source_branch] %>" data-target_branch="<%= params[:target_branch] %>">
   <div class='card'>
     <div class='card-header'>
-          <a href="/">Home</a>
-          <span class="octicon octicon-chevron-right mySeparator"></span>
-          <a href="/create/<%= params[:organization]%>"><%= params[:organization]%></a>
-          <span class="octicon octicon-chevron-right mySeparator"></span>
-          <a href="/create/<%= params[:organization]%>/<%= params[:repository]%>"><%= params[:repository]%></a>
-          <span class="octicon octicon-chevron-right mySeparator"></span>
-
+      <a href="/">Home</a>
+      <span class="octicon octicon-chevron-right my-separator"></span>
+      <a href="/create/<%= params[:organization]%>"><%= params[:organization]%></a>
+      <span class="octicon octicon-chevron-right my-separator"></span>
+      <a href="/create/<%= params[:organization]%>/<%= params[:repository]%>"><%= params[:repository]%></a>
+      <span class="octicon octicon-chevron-right my-separator"></span>
     </div>
-
     <div class='card-body'>
       <div class='row'>
         <div class='col-sm-3'>Organization</div>
@@ -60,7 +59,7 @@
       <div class='form-group row'>
         <label class="col-sm-3 col-form-label">Select the <strong>file</strong> in which the adaptions should be made</label>
         <div class='col-sm col-form-label'>
-          <select id="fileSelect" style="width:100%" onchange="" class="select2">
+          <select id="file-select" class="form-control">
             <% @files.each do |name| %>
               <option <%= name %> <%= (name=="default.xml" ? "selected" : "")%>><%= name %></option>
             <% end %>
@@ -69,7 +68,7 @@
       </div>
       <div class="row">
         <div class='col-sm text-right'>
-          <button id="continue" type='submit' onclick="NextPage()" class='btn btn-success'>
+          <button id="continue" type='submit' class='btn btn-success'>
             Continue <span class='octicon octicon-arrow-right'></span>
           </button>
         </div>
@@ -77,17 +76,3 @@
     </div>
   </div>
 </div>
-
-
-<%= javascript_tag do %>
-$(document).ready(function() {
-    $('.select2').select2({
-      theme: 'bootstrap',
-    });
-});
-
-function NextPage() {
-  window.location.href = '<%= step3_path(params[:organization], params[:repository]) + '/' + u(params[:source_branch]) + '/' + u(params[:target_branch]) %>'+"/"+$('#fileSelect').val();
-}
-
-<% end %>

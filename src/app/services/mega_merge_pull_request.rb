@@ -25,17 +25,27 @@ class MegaMergePullRequest
     @target_branch = params[:target_branch]
     @pull_id = params[:pull_id].to_i
     @config_file = params[:config_file]
+    params[:source_repo_full_name] = @org + "/" + @repo if params[:source_repo_full_name].nil?
+    @source_repository = Repository.from_name(params[:source_repo_full_name])
   end
 
+  # params: none
+  # description: Creates a new pull request and returns it if it does not already exist,
+  #              if it does returns an already existing one
+  # return: nil if no old_pr_state and no pr config_file
+  # return: old_pr_state if old_pr_state exists
+  # return: new MetaPullRequest
+  # return: existing MetaPullRequest
+  # exception: MegamergeException if before MetaPullRequest creation pr exists already
   def call
     old_pr_state = old_meta_pr
     return nil if !old_meta_pr && @pull_id && !@config_file
     return old_pr_state if old_pr_state
-    open_pr = repository.find_open_pr(MetaPullRequest.shadow_branch(@source_branch), @target_branch)
+    open_pr = repository.find_open_pr(@source_repository, @source_branch, @target_branch)
 
     if open_pr&.id?
       open_pr = PullRequest.from_github_data(repository.pull_request(open_pr.id)) if open_pr.state_unknown?
-      open_pr.source_branch = open_pr.source_branch.remove(MetaPullRequest::SHADOW_BRANCH_SUFFIX)
+      raise MegamergeException, "This Megamerge Pull Request exists already!" unless parent_body(open_pr).nil?
       MetaPullRequest.create(open_pr, config_file: @config_file)
     else
       MetaPullRequest.from_params(@params)
@@ -44,12 +54,16 @@ class MegaMergePullRequest
 
   private
 
+  def parent_body(pull_request)
+    MegaMerge::ParentDecoder.decode(pull_request.body)
+  end
+
   def pull_request
     @pull_request ||= repository.pull_request(@pull_id) if PullRequest.id?(@pull_id)
   end
 
   def old_meta_pr
-    @old_meta_pr ||= MetaPullRequest.from_pull_request(pull_request)
+    @old_meta_pr ||= MetaPullRequest.load(@org, @repo, @pull_id)
   end
 
   def repository

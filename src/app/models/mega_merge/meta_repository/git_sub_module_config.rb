@@ -24,28 +24,31 @@ module MegaMerge
         @projects ||= repositories
       end
 
-      def update_hash!(child_change)
-        projects[child_change.name]&.revision = child_change.sha
+      def updated_projects
+        @updated_projects ||= projects.select do |_, p|
+          (p.dirty? && !p.sha.nil?)
+        end
       end
 
-      def remove_entry!(child_change)
-        content.delete_section(projects[child_change.name]&.section_name)
-        projects[child_change.name]&.remove!
-      end
+      def find_includes(configs = "", depth = 5) # dummy
 
-      def perform_actions!(child_actions)
-        super
-        commit_projects! unless updated_projects.empty?
       end
-
-      protected
 
       def file_name
         @file_name || FILE_NAME
       end
 
+      def tree_changes
+        new_blob_sha = repository.create_blob(Base64.encode64(content.to_s), "base64")
+        new_tree = [{:path => file_name, :mode => "100644", :type => "blob", :sha => new_blob_sha}]
+        apply_tree_updates!(new_tree)
+        new_tree
+      end
+
+      protected
+
       def content
-        @content ||= IniFile.new(content: decoded_contents)
+        @content ||= IniFile.new(content: decoded_contents(file_name))
       end
 
       private
@@ -55,67 +58,35 @@ module MegaMerge
         content.each_section do |section_name|
           section = content[section_name]
           return nil if invalid_section?(section)
-          repo = Repository.from_url(section['url'])
-          repositories[repo.name] = GitSubModule.new(
+          repo = repository.from_url(section['url'])
+          logger.debug("Url: #{section['url']} Parent: #{repository.name} Sub: #{repo.name}")
+          new_sub = GitSubModule.new(
             parent_repository: repository,
             repository: repo,
             source_branch: branch_name,
-            target_branch: section['branch'],
             path: section['path']
           )
+          repositories[new_sub.key] = new_sub
         end
         repositories
       end
 
       def invalid_section?(section)
         if section['path'].nil? || section['url'].nil?
-          @logger.warn("#{FILENAME} #{section_name} is missing 'path' or 'url'")
+          logger.warn("#{FILENAME}: #{section_name} is missing 'path' or 'url'")
           return true
         end
         false
       end
 
-      def updated_projects
-        @updated_projects ||= projects.select do |_, p|
-          (p.dirty? && !p.sha.nil?) || p.remove?
-        end
-      end
-
-      def project_tree(sha)
-        @project_tree ||= {}
-        @project_tree[sha] ||= Hash[
-          repository.tree(sha, recursive: true).tree.map { |file| [file.path, file] }
-        ]
-      end
-
-      def apply_tree_updates!(sha)
+      def apply_tree_updates!(tree)
         updated_projects.values.each do |project|
-          if project.remove?
-            project_tree(sha).delete(project.path)
-          else
-            project_tree(sha)[project.path].sha = project.sha
-          end
+          tree.push({:path => project.path, :mode => '160000', :type => 'commit', :sha => project.sha})
+          logger.info "#{project.path} now points to #{project.sha}"
         end
-        # Sawyer converts hashes into array representation. Need to convert it back
-        # and remove all the extra data github sends us.
-        project_tree(sha).values.map { |arr| arr.to_h.slice(:path, :mode, :type, :sha) }
       end
 
-      # To delete a submodule file in GitHub, we need to read out the entire
-      # current git tree, remove the files we want to delete, then write
-      # the new tree back to github without setting a base tree.
-      def commit_projects!
-        latest_commit = repository.commit(branch_name)
-        new_tree = repository.create_tree(
-          apply_tree_updates!(latest_commit.commit.tree.sha)
-        )
-        new_commit = repository.create_commit(
-          'Update submodules',
-          new_tree.sha,
-          [latest_commit.sha]
-        )
-        repository.update_branch(branch_name, new_commit.sha)
-      end
+
     end
   end
 end

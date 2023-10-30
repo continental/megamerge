@@ -16,6 +16,7 @@
 
 class ReopenMegaMerge
   include Callable
+  include Loggable
 
   def initialize(organization, repo, pull_id)
     @organization = organization
@@ -25,7 +26,14 @@ class ReopenMegaMerge
 
   def call
     return pull_request.open! if meta_pr.nil?
-    meta_pr.open_state! unless meta_pr.merged?
+    return if meta_pr.merged?
+
+    with_flock do
+      meta_pr.open_state!
+      meta_pr.refresh_children!
+      meta_pr.update_config_file!
+      meta_pr.write_state!
+    end
   end
 
   private

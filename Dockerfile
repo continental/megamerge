@@ -12,33 +12,51 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM ubuntu:16.04
+FROM ubuntu:18.04
+RUN set -xe \
+  && apt-get update \
+  && apt-get install software-properties-common --no-install-recommends --no-install-suggests -y
+  
+RUN apt-add-repository ppa:brightbox/ruby-ng -y
 
 RUN set -xe \
   && apt-get update \
   && apt-get install -y --no-install-recommends --no-install-suggests \
-    ruby \
-    ruby-dev \
-    ruby-bundler \
-    build-essential \
-    zlib1g-dev \
-    libsqlite3-dev \
-    nodejs \
-    git \
-    libffi-dev \
+  software-properties-common \
+  ruby2.7 \
+  ruby2.7-dev \
+  ruby-bundler \
+  build-essential \
+  zlib1g-dev \
+  nodejs \
+  git \
+  libffi-dev \
+  libpq-dev \
   \
-  && gem install \
-    bundler \
+  && gem install bundler -v 1.16.1\
   \
   && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+  
+ARG user=megamerge
+ARG group=megamerge
+ARG uid=1000
+ARG gid=1000
 
-COPY ./src/Gemfile /tmp
-WORKDIR /tmp
+RUN groupadd -g ${gid} ${group}
+RUN useradd -c "Megamerge user" -d /home/${user} -u ${uid} -g ${gid} -m ${user}  
+
+WORKDIR /srv
+COPY ./src/Gemfile /srv/Gemfile
+COPY ./src/Gemfile.lock /srv/Gemfile.lock
+
 RUN bundle install
 
 COPY ./src /srv/
-WORKDIR /srv/
-RUN bundle install
+
+RUN chown -R ${user}: /srv
+USER ${user}
+
+RUN bundle exec rake assets:precompile
 
 EXPOSE 3000
 CMD ["/usr/local/bin/rails", "server", "-b", "0.0.0.0"]

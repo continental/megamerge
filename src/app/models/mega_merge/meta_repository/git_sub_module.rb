@@ -24,33 +24,23 @@ module MegaMerge
 
       attr_accessor :path, :source_branch, :repository, :parent_repository
 
-      def attributes
-        { 'path' => nil, 'type' => nil, 'mode' => nil, 'sha' => nil }
+
+      def config_file
+        path
       end
 
-      def self.mode
-        SUB_MODULE_MODE
+      def key
+        "#{org}/#{name}/#{path}"
       end
 
-      def self.type
-        SUB_MODULE_TYPE
+      def name
+        repository.repository
       end
 
-      def mode
-        self.class.mode
+      def org
+        repository.organization
       end
 
-      def type
-        self.class.type
-      end
-
-      def target_branch
-        @target_branch || 'master'
-      end
-
-      def target_branch=(value)
-        @target_branch = (value == '.' ? current_branch : value)
-      end
 
       def revision
         @revision ||= fetch_revision
@@ -58,16 +48,8 @@ module MegaMerge
       alias sha revision
 
       def revision=(value)
+        @dirty = true if revision != value
         @revision = value
-        @dirty = true
-      end
-
-      def remove!
-        @remove = true
-      end
-
-      def remove?
-        @remove || false
       end
 
       def dirty?
@@ -82,6 +64,7 @@ module MegaMerge
 
       # To save requests, only fetch the revision if absolutly needed.
       def fetch_revision
+        logger.debug("fetch_revision #{source_branch}: #{path}")
         file = parent_repository.contents(path: path + '?ref=' + source_branch)
         return nil if file[:type] != 'submodule'
         file[:sha]

@@ -12,231 +12,185 @@
   # See the License for the specific language governing permissions and
   # limitations under the License.
   #%>
-
-<div class='container'>
+<div class='container' id="data" data-organization="<%= params[:organization] %>" data-repository="<%= params[:repository] %>">
   <div class='card'>
     <div class='card-header'>
-          <a href="/">Home</a>
-          <span class="octicon octicon-chevron-right mySeparator"></span>
-          <a href="/create/<%= params[:organization]%>"><%= params[:organization]%></a>
-          <span class="octicon octicon-chevron-right mySeparator"></span>
+      <a href="/">Home</a>
+      <% if params[:organization] %>
+        <span class="octicon octicon-chevron-right my-separator"></span>
+        <a href="/create/<%= params[:organization]%>"><%= params[:organization]%></a>
+        <% if params[:repository] %>
+          <span class="octicon octicon-chevron-right my-separator"></span>
           <a href="/create/<%= params[:organization]%>/<%= params[:repository]%>"><%= params[:repository]%></a>
+        <% end %>
+      <% end %>
     </div>
-
     <div class='card-body'>
       <div class='row'>
         <div class='col-sm-3'>Organization</div>
         <div class='col-sm'>
-          <%= params[:organization]%>
+        <%= select_tag(:organization, options_for_select(@organizations, params[:organization]), title: 'Please Select', class: 'selectpicker form-control') %>
         </div>
       </div>
       <br>
-      <div class='row'>
-        <div class='col-sm-3'>Meta Repository</div>
-        <div class='col-sm'>
-          <%= params[:repository]%>
+      <% if params[:organization] %>
+        <div class='row'>
+          <div class='col-sm-3'><u>Meta</u> Repository</div>
+          <div class='col-sm'>
+            <select id="repository" name="repository" class="selectpicker form-control" data-live-search="true" title="Please Select">
+              <optgroup label="Meta">
+                <% @repos.select{|name| name.include?('meta') || name.include?('master') || name.include?('manifest') }.each do |name| %>
+                  <option <%= (name == params[:repository] ? "selected" : "") %>>
+                    <%= name %>
+                  </option>
+                <% end %>
+              </optgroup>
+              <optgroup label="Other">
+                <% @repos.select{|name| !name.include?('meta') && !name.include?('master') && !name.include?('manifest') }.each do |name| %>
+                  <option <%= (name == params[:repository] ? "selected" : "") %>>
+                    <%= name %>
+                  </option>
+                <% end %>
+              </optgroup>
+            </select>
+          </div>
         </div>
-      </div>
-      <br>
-      <br>
-
-
-
-
-
-
-
-
-
-
-
-
-      <div class="row">
-        <div class="col">
-          <div class="collapse multi-collapse" id="multiCollapseExample1">
-
-            <div class="row">
-              <div class='col-sm'>
-                <button class="btn btn-secondary" type="button" data-toggle="collapse" data-target=".multi-collapse" aria-expanded="true" aria-controls="multiCollapseExample1 multiCollapseExample2">
-                  Existing Megamerge Pull Request <span class='octicon octicon-arrow-right'></span>
-                </button>
+        <% if params[:repository] %>
+        <br>
+        <br>
+        <div class="row">
+          <div class="col">
+            <div class="collapse multi-collapse" id="multiCollapseExample1">
+              <div class="row">
+                <div class='col-sm'>
+                  <button class="btn btn-secondary" type="button" data-toggle="collapse" data-target=".multi-collapse" aria-expanded="true" aria-controls="multiCollapseExample1 multiCollapseExample2">
+                    Existing Megamerge Pull Request <span class='octicon octicon-arrow-right'></span>
+                  </button>
+                </div>
               </div>
-            </div>
-            <br>
-            <br>
-            <div id="errorMessage" class="alert alert-danger" style="display:none" >
-              <button type="button" class="close" onclick="$(this).parent().hide()">
-                <span aria-hidden="true">&times;</span>
-              </button>
-              <strong>Error:</strong> <span id="errorText"></span>
-            </div>
-
-            <div class="card-deck">
-              <div class="card border-0">
-                <div class="card-body">
-                  <h5 class="card-title">
-                    Source Branch
-                    <span style="color:lightgrey" class="octicon octicon-question" data-toggle="popover"
-                        data-content="Can be a new one or an existing one. Will be created if it did not exist before.">
-                    </span>
-                  </h5>
-                  <br>
-
-                  <select id="source_branch" data-placeholder="Branch name e.g. pt/ticket-xxx">
-                      <option></option>
+              <br>
+              <br>
+              <div id="errorMessage" class="alert alert-danger" style="display:none" >
+                <button type="button" class="close" onclick="$(this).parent().hide()">
+                  <span aria-hidden="true">&times;</span>
+                </button>
+                <strong>Error:</strong> <span id="errorText"></span>
+              </div>
+              <div class="row">
+                <div class="col-md-5 h5">
+                  <u>Meta</u> Source Branch
+                  <span style="color:lightgrey" class="octicon octicon-question" data-toggle="popover"
+                      data-content="Can be a new one or an existing one. Will be created if it did not exist before.">
+                  </span>
+                </div>
+                <div class="col-md-2">
+                </div>
+                <div class="col-md-5 h5">
+                  Target Branch
+                </div>
+              </div>
+              
+              <div class="row mt-3">
+                <div class="col-md-5 h5">
+                  <select id="source_branch" class="form-control" data-live-search="true">
                     <% @branches.each do |name| %>
                       <option><%= name %></option>
                     <% end %>
                   </select>
-
-                  <small class="form-text text-muted"> Mind your project's branch naming conventions!</small>
-
-
-                  <br>
+                  <small class="form-text text-muted">
+                    The meta source branch should have the same name as the source branch of your changes.<br>
+                    It will be created if it does not exist.
+                    
+                  </small>
                 </div>
-              </div>
-              <div class="d-flex align-items-center" style="margin:30px">
-                <div class="text-center">---></div>
-              </div>
-              <div class="card border-0"">
-                <div class="card-body" >
-
-                  <h5 class="card-title">Target Branch</h5>
-                  <br>
-                  <select id="target_branch" style="width:100%" onchange="" class="select2">
+                <div class="col-md-2 text-center">
+                  <svg height="16" viewBox="0 16 48 32" version="1.1" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M26 16 L34 30 L0 30 L0 34 L34 34 L26 48 L46 32 Z"></path>
+                  </svg>
+                </div>
+                <div class="col-md-5 h5">
+                  <select id="target_branch" class="form-control" data-live-search="true">
                     <% @branches.each do |name| %>
-                      <option <%= (name == "master" ? "selected" : "") %>><%= name %></option>
+                      <option <%= (name == @repo.default_branch ? "selected" : "") %>
+                        data-content = '<%= name %>
+                              <% if name == @repo.default_branch %>
+                                <span class="ml-2 badge badge-secondary">Default</span>
+                              <% end %>'>
+                            <%= name %>
+                      </option>
                     <% end %>
                   </select>
                 </div>
-              </div>
-            </div>
-            <br>
-            <div class="row">
-              <div class='col-sm text-right'>
-                <button id="continue" type='button' onclick="CheckInputAndContinue()" class='btn btn-success'>
-                  Continue <span class='octicon octicon-arrow-right'></span>
-                </button>
-              </div>
-            </div>
+              </div>           
+              
 
+              <br>
+              <div class="row">
+                <div class='col-sm text-right'>
+                  <button id="continue" type='button' class='btn btn-success'>
+                    Continue <span class='octicon octicon-arrow-right'></span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="row">
-        <div class="col">
-          <div class="collapse multi-collapse show" id="multiCollapseExample2">
-
-            <div class="row">
-              <div class='col-sm'>
-                <button class="btn btn-success" type="button" data-toggle="collapse" data-target=".multi-collapse" aria-expanded="true" aria-controls="multiCollapseExample1 multiCollapseExample2">
-                  <span class="octicon octicon-plus"></span>&nbsp;New Megamerge Pull Request
-                </button>
+        <div class="row">
+          <div class="col">
+            <div class="collapse multi-collapse show" id="multiCollapseExample2">
+              <div class="row">
+                <div class='col-sm'>
+                  <button class="btn btn-success" type="button" data-toggle="collapse" data-target=".multi-collapse" aria-expanded="true" aria-controls="multiCollapseExample1 multiCollapseExample2">
+                    <span class="octicon octicon-plus"></span>&nbsp;New Megamerge Pull Request
+                  </button>
+                </div>
               </div>
+              <br><br>
+              <h5>Open Pull Requests:</h5><br>
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th scope="col">Pr #</th>
+                    <th scope="col">Title</th>
+                    <th scope="col">Author</th>
+                    <th scope="col">Branch</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% @open_prs.each do |pr_data| %>
+                    <tr class='c-pointer'
+                      onclick="window.location.pathname='/view/<%= params[:organization]%>/<%= params[:repository]%>/<%=pr_data.id%>'">
+                      <td scope="row" nowrap>
+                        <a href="/view/<%= params[:organization]%>/<%= params[:repository]%>/<%=pr_data.id%>">
+                          # <%= pr_data.id %>
+                        </a>
+                      </td>
+                      <td>
+                        <%=pr_data.title%>
+                        <% if (pr_data.draft?) %>
+                          <span class='badge badge-warning'>Draft</span>
+                        <% end %>
+                      </td>
+                      <td>
+                        <%=pr_data.author.name%>
+                        <% if (pr_data.author.login == @user.user.login) %>
+                          <span class='badge badge-info'>You!</span>
+                        <% end %>
+                      </td>
+                      <td>
+                        <%=pr_data.source_branch%>
+                        &#8594;
+                        <%=pr_data.target_branch%>
+                      </td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
             </div>
-            <br>
-
-            <table class="table table-hover">
-              <thead>
-                <tr>
-                  <th scope="col">Pr #</th>
-                  <th scope="col">Title</th>
-                  <th scope="col">Author</th>
-                </tr>
-              </thead>
-              <tbody>
-                <% @open_prs.each do |pr_data| %>
-
-                <tr style="cursor: pointer;"
-                    onclick="window.location='/view/<%= params[:organization]%>/<%= params[:repository]%>/<%=pr_data[:number]%>';">
-                  <td scope="row" >
-                    <a href="/view/<%= params[:organization]%>/<%= params[:repository]%>/<%=pr_data[:number]%>">
-                      # <%= pr_data[:number] %>
-                    </a>
-                  </td>
-                  <td><%=pr_data[:title]%></td>
-                  <td>
-                    <%=pr_data[:user][:login]%>
-                    <% if (pr_data[:user][:login] == @user.user.login) %>
-                      <span class='badge badge-info'>You!</span>
-                    <% end %>
-
-                  </td>
-                </tr>
-                <% end %>
-              </tbody>
-            </table>
-
           </div>
         </div>
-      </div>
-
-
-
-
+        <% end %>
+      <% end %>
     </div>
   </div>
 </div>
-
-
-<%= javascript_tag do %>
-
-$('.select2').select2({
-  theme: 'bootstrap',
-  placeholder: "Please select"
-});
-
-
-$("#source_branch").select2({
-  tags: true,
-  theme: 'bootstrap',
-  createTag: function (params) {
-    var term = $.trim(params.term);
-
-    if (term === '') {
-      return null;
-    }
-
-    return {
-      id: term,
-      text: term,
-      customTag: true
-    }
-  },
-  templateSelection: function (state) {
-    if (!state.id) {
-    return state.text;
-  }
-    if(state.customTag)
-      return $('<div class="row"><div class="col">'+state.text + '</div><div class="col text-right"> <span class="badge badge-success">Branch will be created</span></div></div>');
-
-    return $('<div class="row"><div class="col">'+state.text + '</div><div class="col text-right"> <span class="badge badge-warning">Branch existing</span></div></div>');
-  }
-});
-
-
-
-function CheckInputAndContinue() {
-
-  var sourceBranch = encodeURIComponent($('#source_branch').val());
-  var targetBranch = encodeURIComponent($('#target_branch').val());
-
-  if(sourceBranch.length == 0)
-    showError('Source Branch is empty!');
-  else if(sourceBranch == targetBranch)
-    showError('Source and Target Branch are the same!');
-  else
-    window.location.href = '<%= step3_path params[:organization], params[:repository] %>'+"/"+sourceBranch+"/"+targetBranch;
-}
-
-
-function showError(text) {
-
-  $('#errorText').html(text);
-  $('#errorMessage').fadeTo('fast',1);
-  $('#errorMessage').show();
-
-}
-
-
-<% end %>

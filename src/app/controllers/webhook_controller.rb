@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2018 Continental Automotive GmbH
+# Copyright (c) 2021 Continental Automotive GmbH
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ class WebhookController < ApplicationController
   skip_before_action :verify_authenticity_token
 
   def event
-    render plain: ProcessGitHubEvent.call(request.headers['X-GitHub-Event'], params)
+    RequestStore.store[:is_webhook] = true
+    ProcessGitHubEvent.call(request.headers['X-GitHub-Event'], params)
+    render plain: RequestStore.store[:log]
   end
 end

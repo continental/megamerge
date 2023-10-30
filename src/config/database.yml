@@ -1,0 +1,22 @@
+
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  host: 10.0.2.15
+  port: 5432
+  username: postgres
+  password: example
+  pool: 5
+
+development:
+  <<: *default
+  database: megamerge_development
+
+
+test:
+  <<: *default
+  database: megamerge_test
+  
+ production:
+  <<: *default
+  database: megamerge

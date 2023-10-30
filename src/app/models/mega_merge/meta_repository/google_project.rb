@@ -17,9 +17,10 @@
 module MegaMerge
   module MetaRepository
     class GoogleProject
-      attr_accessor :project_remote
+      attr_accessor :project_remote, :config_file
 
-      def initialize(xml)
+      def initialize(xml, config_file)
+        @config_file = config_file
         @xml = xml
       end
 
@@ -35,25 +36,37 @@ module MegaMerge
         @revision ||= @xml[:revision]
       end
 
-      def revision=(value)
-        @xml[:revision] = value
+      def config_file
+        @config_file
       end
 
-      def target_branch
-        @target_branch ||= (@xml[:targetbranch] || 'master')
+      def revision=(value)
+        @dirty = true if revision != value
+        @xml[:revision] = value
+        @revision = value
+      end
+
+      def org
+        project_remote.organization
       end
 
       def key
-        "#{project_remote.organization}/#{name}"
+        "#{project_remote.organization}/#{name}/#{config_file}"
       end
 
-      def remove
+      def remove!
+        @remove = true
         @xml.remove
       end
 
-      def to_xml
-        @xml
+      def remove?
+        @remove || false
       end
+
+      def dirty?
+        @dirty || false
+      end
+
     end
   end
 end

@@ -48,7 +48,7 @@ RSpec.feature 'UpdateMegaMerge', type: :feature do
       # TODO: find better way than to sleep here
       sleep 1
       select_select2("#{subrepo_selector(@subrepo)}-source_branch", @subrepo[:source_branch])
-      find_by_id('saveChangesButton').click
+      find_by_id('save-changes-btn').click
     end
 
     it 'should create missing pull requests' do

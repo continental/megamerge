@@ -1,0 +1,372 @@
+<%# Copyright (c) 2018 Continental Automotive GmbH
+  #
+  # Licensed under the Apache License, Version 2.0 (the "License");
+  # you may not use this file except in compliance with the License.
+  # You may obtain a copy of the License at
+  #
+  #   http://www.apache.org/licenses/LICENSE-2.0
+  #
+  # Unless required by applicable law or agreed to in writing, software
+  # distributed under the License is distributed on an "AS IS" BASIS,
+  # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  # See the License for the specific language governing permissions and
+  # limitations under the License.
+  #%>
+<style>
+table{
+  border: 1px solid black;
+  border-spacing: 0;
+}
+thead > tr {
+  background-color: rgb(140, 146, 172);
+}
+th, td {
+  border: 1px solid black;
+  border-collapse: collapse;
+  padding:4px 6px;
+}
+h3 {text-align: center;}
+</style>
+
+<h3>Repo settings checks</h3>
+<b>Organzization: <i><%= @orgg %></i></b><br>
+<b>Repository: <i><%= @rep %></i></b><br>
+<b>Pull req ID: <i><%= @prid %></i></b><br>
+<p>
+  <b>Checks summary:</b>
+  <ul>
+    <li>Dismiss stale pull request approvals (check on meta repo target branch): 
+      <% if ((@stale_pull_req) && (@stale_pull_req==true)) %>
+        <b style="color:red">Enabled => NOK! </b>
+      <% else %> <b>Disabled => OK</b>
+      <% end %>
+    </li>
+    <li>Restrict who can push matching branches (check on meta and sub repositories):
+      <% if (@restrict_push.empty?) %> <b>Disabled => OK</b>
+      <% else %><b style="color:red">Enabled => NOK! </b><br>
+       Enabled on: <%= @restrict_push.join(", ")%>
+      <% end %>
+    </li>
+    <li>MM access to repositories: 
+      <% if !(@repos_missing_mm.empty?) %>
+        <b style="color:red">MM does not have access to all repositories/pull requests! </b><br> Missing:  <%= @repos_missing_mm.join(", ")%>
+      <% else %> 
+        <% if @pr_problems%>
+           <b style="color:red">MM does not have access to all repositories/pull requests!</b> <br> Repositories where MM has access: <%= @repos_bot.join(", ")%>
+        <% else %> <b> MM has access to all repositories!</b>
+        <% end %>
+      <% end %>
+    </li>
+    <% if (@new_orgs && !@new_orgs.empty?) %>
+      <li>Repositories form more organizations: <%= @new_orgs.split(", ")%>, <%=@orgg%>
+      </li>
+    <% end %>
+  </ul>
+</p>
+<p>
+  <b>Rate limit</b>
+  <ul>
+    <li><b>API rate limit</b><br>
+    <table >
+    <thead>
+      <tr>
+        <th>User</th>
+        <th>Rate limit (requests per hour)</th>
+        <th>Remaining</th>
+        <th>Resets at (time)</th>
+        <th>Resets in (s) </th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Current user<% if @user%>: <%= @user.user.name %><% end %>
+        </td>
+        <% if (@rate_limit_user) %>
+          <td><%= @rate_limit_user["limit"] %>
+          </td>
+          <td><b><%= @rate_limit_user["remaining"] %></b>
+          </td>
+          <td><%= @rate_limit_user["resets_at"].iso8601 %>
+          </td>
+          <td><%= @rate_limit_user["resets_in"] %>
+          </td>
+        <% else %>
+          <td></td><td></td><td></td><td></td>
+        <% end %>
+      </tr>
+        <td>Bot client
+        </td>
+        <% if (@rate_limit_bot) %>
+          <td><%= @rate_limit_bot["limit"] %>
+          </td>
+          <td><b><%= @rate_limit_bot["remaining"] %></b>
+          </td>
+          <td><%= @rate_limit_bot["resets_at"].iso8601 %>
+          </td>
+          <td><%= @rate_limit_bot["resets_in"] %>
+          </td>
+        <% else %>
+          <td></td><td></td><td></td><td></td>
+        <% end %>
+    </tbody>
+    </table>
+    </li>
+   <li><b>GraphQL rate limit</b><br>
+    <table >
+    <thead>
+      <tr>
+        <th>User</th>
+        <th>Rate limit (requests per hour)</th>
+        <th>Remaining</th>
+        <th>Reset at (time) </th>
+        <th>Cost </th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+         <td>Current user<% if @user%>: <%= @user.user.name %><% end %>
+        <% if (@gql_response) %>
+           <td><%= @gql_response[:rateLimit][:limit] %>
+          </td>
+          <td><b><%= @gql_response[:rateLimit][:remaining] %></b>
+          </td> 
+          <td><%= Time.zone.parse(@gql_response[:rateLimit][:resetAt]).getlocal.iso8601 %>
+          </td>
+          <td><%= @gql_response[:rateLimit][:cost] %>
+          </td>
+        <% else %>
+           <td></td><td></td><td></td><td></td>
+        <% end %>
+      </tr>
+      <tr>
+        <td>Bot client</td>
+        <% if (@gql_rate_bot) %>
+           <td><%= @gql_rate_bot[:limit] %>
+          </td>
+          <td><b><%=  @gql_rate_bot[:remaining] %></b>
+          </td>         
+          <td><%= Time.at(@gql_rate_bot[:reset]).iso8601 %>
+          </td>
+           <td><%= @gql_rate_bot[:used] %>
+          </td>
+        <% else %>
+          <td></td><td></td><td></td><td></td>
+        <% end %>
+      </tr>
+    </tbody>
+    </table>
+   </li>
+  </ul>
+</p>
+<p><b>Setings</b><br>
+  <table >
+    <thead>
+      <tr>
+        <th>Meta repo Branch protection rules</th>
+        <th>Value</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% if (@branch_prot)%>
+        <tr>
+          <td>Name: </td><td><%= @rep %></td>
+        </tr>
+        <tr>
+           <td>URL: </td><td><%= @branch_prot[:url] %></td>
+        </tr>
+        <% if (@branch_prot[:required_status_checks]) %>
+          <tr>
+            <td>Required status checks url: </td><td><%= @branch_prot[:required_status_checks][:url] %></td>
+          </tr>
+          <tr>
+            <td>Required status checks strict: </td><td><%= @branch_prot[:required_status_checks][:strict] %></td>
+          </tr>
+          <tr>
+            <td>Required status checks context: </td><td> <%=@branch_prot[:required_status_checks][:contexts]  %></td>
+          </tr>
+          <tr>
+            <td>Required status checks context url: </td><td> <%=@branch_prot[:required_status_checks][:cotexts_url]  %></td>
+          </tr>
+        <% else %>
+          <tr>
+            <td><i>Required status checks</i></td><td>-</td>
+          </tr>
+        <% end %>
+        <tr>
+          <td>Enforced admin enabled: </td><td> <%= @branch_prot[:enforce_admins][:enabled] %></td>
+        </tr>
+        <tr>
+          <td>Enforced admin URL:</td><td> <%=  @branch_prot[:enforce_admins][:url]  %></td>
+        </tr>
+        <% if (@branch_prot[:required_pull_request_reviews]) %>
+          <tr>
+            <td>Required pull req reviews url:</td><td> <%= @branch_prot[:required_pull_request_reviews][:url]  %></td>
+          </tr>
+          <tr>
+            <td>Dismiss stale pull req reviews:</td>
+            <td> 
+            <% if  ( @branch_prot[:required_pull_request_reviews][:dismiss_stale_reviews]) && (@branch_prot[:required_pull_request_reviews][:dismiss_stale_reviews] ==true)  %>
+            <b style="color:red">enabled!</b>
+            <% else %>disabled
+            <% end %>
+            </td>
+          </tr>
+            <td>Required code owners reviews:</td><td> <%= @branch_prot[:required_pull_request_reviews][:require_code_owner_reviews]  %></td>
+          <tr>
+          </tr>
+        <% else %>
+          <tr>
+            <td>Required pull req reviews:</td><td>-</td>
+          </tr>
+        <% end %>
+        <tr>
+          <td>Restrictions:</td>
+          <td> 
+          <% if (@branch_prot[:restrictions])  %><b style="color:red">enabled!</b>
+          <% else %>disabled
+          <% end %>
+          </td>
+        </tr>
+        <tr>
+          <td>Required linear history:</td><td> <%=  @branch_prot[:required_linear_history][:enabled] %></td>
+        </tr>
+        <tr>
+          <td>Allow force pushes:</td><td> <%=  @branch_prot[:allow_force_pushes][:enabled] %></td>
+        </tr>
+        <tr>
+          <td>Allow deletion::</td><td> <%=  @branch_prot[:allow_deletions][:enabled] %></td>
+        </tr>
+      <% else %>
+        <tr>
+          <td><i>No branch protection rules configured</i></td>
+          <td>Configuration to be set: <%= link_to("MM Branch Configuration","https://confluence-id.zone2.agileci.conti.de/display/CIPS/MegaMerge+Installation+Guide#MegaMergeInstallationGuide-ConfiguringtheSub-Repositories")%></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</p>
+
+<p>
+<table>
+    <thead>
+        <tr>
+            <th>Sub repos Branch protection rules</th>
+            <th>Value</th>
+        </tr>
+    </thead>
+    <tbody>
+        <% if ((@subBranchProt) && (!@subBranchProt.empty?)) %>
+          <% @subBranchProt.each do |t| %>
+              <tr>
+                  <td><b>Name: </b></td><td><b><%= t[:name] %></b></td>
+              </tr>
+              <tr>
+                  <td>URL: </td><td><%= t[:url] %></td>
+              </tr>
+              <% if (t[:required_status_checks])%>
+                  <tr>
+                      <td>Required status checks url: </td><td><%=t[:required_status_checks][:url] %></td>
+                  </tr>
+                  <tr>
+                      <td>Required status checks strict: </td><td><%= t[:required_status_checks][:strict] %></td>
+                  </tr>
+                  <tr>
+                      <td>Required status checks context: </td><td><%= t[:required_status_checks][:contexts] %></td>
+                  </tr>
+                  <tr>
+                      <td>Required status checks context url: </td><td><%= t[:required_status_checks][:contexts_url] %></td>
+                  </tr>
+              <% else %>
+                  <tr>
+                      <td><i>No required status checks</i></td>
+                  </tr>
+              <% end %>
+              <tr>
+                  <td>Enforced admin enabled: </td><td><%= t[:enforce_admins][:enabled] %></td>
+              </tr>
+              <tr>
+                  <td>Enforced admin URL: </td><td><%= t[:enforce_admins][:url] %></td>
+              </tr>
+              <tr>
+                  <td>Required pull req reviews: </td><td><%= t[:required_pull_request_reviews] %></td>
+              </tr>
+              <tr>
+                  <td>Restrictions: </td>
+                  <td>
+                  <% if (t[:restrictions])  %><b style="color:red">enabled!</b>
+                  <% else %>disabled
+                  <% end %>
+                  </td>
+              </tr>
+              <tr>
+                  <td>Required linear history: </td><td><%= t[:required_linear_history][:enabled] %></td>
+              </tr>
+              <tr>
+                  <td>Allow force pushes: </td><td><%= t[:allow_force_pushes][:enabled] %></td>
+              </tr>
+              <tr>
+                  <td>Allow deletion: </td><td><%= t[:allow_deletions][:enabled] %></td>
+              </tr>
+          <% end %>
+        <% else %>
+          <% if (@pr_problems)%> 
+            <tr>
+              <td><i style="color:red">MM could not get information for sub repositories/pull requests!</i></td>
+              <td>-</td>
+            </tr>
+          <% else %>
+            <tr>
+              <td><i>No branch protection rules configured</i></td>
+              <td>Configuration to be set: <%= link_to("MM Branch Configuration","https://confluence-id.zone2.agileci.conti.de/display/CIPS/MegaMerge+Installation+Guide#MegaMergeInstallationGuide-ConfiguringtheSub-Repositories")%></td>
+            </tr>
+          <% end %>
+        <% end %>       
+    </tbody>
+</table>
+</p>
+
+<p>
+<table>
+  <thead>
+    <tr>
+      <th>MM Installation settings</th>
+      <th>Value </th>
+    </tr>
+  </thead>
+  <tbody>
+    <% if (@org_install_info) %>
+      <tr>
+        <td> Organization </td>
+        <td><%= @org_install_info[:account][:login] %></td>
+      </tr>
+      <tr>
+        <td> Repositories </td>
+        <td><%= @org_install_info[:repository_selection] %></td>
+      </tr>
+      <tr>
+        <td> Permissions  </td>
+        <td>
+          <% if (@org_install_info[:permissions]) %>
+            <%= @org_install_info[:permissions].inspect %>
+          <% else %>-
+          <% end %>
+        </td>
+      </tr>
+      <tr>
+        <td> Events </td>
+        <td>
+          <% if @org_install_info[:events] %>
+            <%= @org_install_info[:events].join(", ") %>
+          <% else %>-
+          <% end %>
+        </td>
+      </tr>
+    <% else %> 
+      <tr>
+          <td><i>No MM installation settings retrieved</i></td>
+          <td>-</td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+</p>

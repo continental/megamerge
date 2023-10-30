@@ -1,0 +1,4 @@
+class MegamergeException < StandardError
+
+
+end

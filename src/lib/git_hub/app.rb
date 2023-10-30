@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2018 Continental Automotive GmbH
+# Copyright (c) 2021 Continental Automotive GmbH
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,11 +20,11 @@ module GitHub
     # Github App Tokens have a maximum lifetime of 10 minutes
     # Can't use exactly 10 minutes as github complains that the token
     # lasts too long.
-    TOKEN_TIMEOUT = 9.minutes
+    TOKEN_TIMEOUT = (9 * 60).freeze
 
     # Cache timeout buffer
     # Refreshes the token 1 minute before official expiry
-    TOKEN_TIMEOUT_BUFFER = 1.minute
+    TOKEN_TIMEOUT_BUFFER = (1 * 60).freeze
 
     def self.app_id
       Rails.application.config.github[:app_id]
@@ -42,10 +42,13 @@ module GitHub
         regen = true
         jwt_token
       end
+      #logger.info token
       if regen
-        @client = Octokit::Client.new(bearer_token: token)
+        #@client = Octokit::Client.new(bearer_token: token)
+        @client = OctokitClientProxy.new(bearer_token: token)
       else
-        @client ||= Octokit::Client.new(bearer_token: token)
+        #@client ||= Octokit::Client.new(bearer_token: token)
+        @client ||= OctokitClientProxy.new(bearer_token: token)
       end
     end
 
@@ -58,7 +61,7 @@ module GitHub
     end
 
     def payload
-      iat = Time.now.utc.to_i
+      iat = Time.now.to_i
       {
         iat: iat,
         exp: iat + TOKEN_TIMEOUT,
@@ -71,7 +74,6 @@ module GitHub
     end
 
     def private_key
-      puts private_pem.to_yaml
       OpenSSL::PKey::RSA.new(private_pem)
     end
 

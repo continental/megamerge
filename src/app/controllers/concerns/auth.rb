@@ -19,17 +19,24 @@ require_dependency 'git_hub/user'
 module Auth
   def process_login
     return unless request[:code]
+
     logger.info 'OAuth Authorization: ' + request[:code]
+    logger.info "Redirect to: #{request.base_url}/#{params[:redirect]}"
     session[:access_token] = GitHub::User.token(request[:code])
   end
 
   def require_login
     # TODO: Add authorzation regarding organization
-    logger.info "Verify Authorization: #{session[:access_token]}"
+    # logger.info "Verify Authorization: #{session[:access_token]}"
+    session[:redirect_to] = request.base_url + request.original_fullpath
     return render 'session/index' unless session[:access_token]
+
     @user = GitHub::User.new(session[:access_token])
-  rescue StandardError
-    logger.info 'Invalidating access_token'
+    RequestStore.store[:client] = @user.client
+  rescue StandardError => ex
+    logger.info ex.message
+    logger.info ex.backtrace.to_s
+    logger.info "Invalidating access_token: #{ex.message}"
     session.delete(:access_token)
     render 'session/index'
   end

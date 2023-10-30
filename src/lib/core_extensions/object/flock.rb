@@ -18,13 +18,28 @@ module CoreExtensions
   module Object
     # Global file lock
     module Flock
-      def with_flock(lock_file = '/tmp/global.lock')
+      include Loggable
+      def with_flock(name = 'global', blocking = true, dir = '/tmp/mm/locks/', logging = true)
+        lock_file = dir + name.gsub(/[^0-9A-Za-z]/, '_') + '.lock' # replace all special chars by _
+        FileUtils.mkdir_p(dir) unless File.exists?(dir)
         file_lock = File.open(lock_file, File::RDWR | File::CREAT, 0o644)
-        file_lock.flock(File::LOCK_EX)
+        ret = file_lock.flock(File::LOCK_EX | File::LOCK_NB)  unless blocking
+        ret = file_lock.flock(File::LOCK_EX)  if blocking
+        got_lock = ret == 0
+        #logger.info "wait blocking: #{blocking} ,  ret: #{ret}, got_lock : #{got_lock}"
+
+        logger.info "lock denied on #{lock_file}" unless got_lock
+        return unless got_lock
+
+        logger.info "locking on #{lock_file}" if logging
         yield
       ensure
-        file_lock.flock(File::LOCK_UN)
+        if !file_lock.nil? && got_lock
+          logger.info "unlocking #{lock_file}" if logging
+          file_lock.flock(File::LOCK_UN)
+        end
       end
+
     end
   end
 end

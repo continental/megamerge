@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Copyright (c) 2018 Continental Automotive GmbH
+# Copyright (c) 2021 Continental Automotive GmbH
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,16 +18,21 @@ class SessionController < ApplicationController
   skip_before_action :require_login, only: [:oauth]
 
   def index
-    @revision = `git rev-parse HEAD` || 'unknown'
-    redirect_to(step1_path) if session[:access_token]
+    if session[:access_token] && session[:repository] && session[:organization]
+      redirect_to(step3_path(session[:organization],session[:repository])) 
+    elsif session[:access_token]
+      redirect_to(step1_path)
+    end 
   end
 
   def oauth
     process_login
+    return redirect_to "/#{params[:redirect]}" if params[:redirect]
     redirect_to step1_path
   end
 
   def logout
+    @user.revoke_application_authorization(session[:access_token])
     session.delete(:access_token)
   end
 end

@@ -18,5 +18,8 @@
 	<br>
 	<p>Please connect Mega Merger with your <a href='<%= Rails.application.config.github[:server] =%>'>GitHub</a> Account</p>
 	<br>
-	<a id="login" class='btn btn-success btn-lg' href='<%= Rails.application.config.authorize_url %>' role='button'>Connect with Mega Merger</a>
+	<a id="login" class='btn btn-success btn-lg' role='button'
+  href='<%= "#{Rails.application.config.authorize_url}&redirect_uri=#{Rails.application.config.url + '/oauth' + request.original_fullpath}" %>'>
+    Connect with Mega Merger
+  </a>
 </div>

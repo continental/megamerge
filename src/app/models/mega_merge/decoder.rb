@@ -24,8 +24,8 @@ module MegaMerge
   #   Mega merge specific body
   #   <!-- END MEGAMERGE -->
   class Decoder
-    CONFIG = /<!-- configuration: (.*) -->/
-    VERSION = /<!-- version: (.*) -->/
+    CONFIG = /<!-- configuration: (.*) -->/.freeze
+    VERSION = /<!-- version: (.*) -->/.freeze
 
     attr_reader :text
 
@@ -39,6 +39,7 @@ module MegaMerge
 
     def decode
       return nil unless valid?
+
       {
         body: body,
         config: config

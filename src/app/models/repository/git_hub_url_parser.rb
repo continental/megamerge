@@ -16,31 +16,52 @@
 
 class Repository
   module GitHubUrlParser
+    def self.included(klass)
+      klass.extend(ClassMethods)
+    end
+
     def from_url(url)
-      if url =~ /^https?:\/\//
-        parse_url(url)
-      elsif url =~ /^git@/
-        parse_ssh(url)
+      self.class.from_url(url, owner: organization)
+    end
+
+    module ClassMethods
+      def from_url(url, owner: nil)
+        if url =~ /^https?:\/\//
+          parse_url(url)
+        elsif url =~ /^git@/
+          parse_ssh(url)
+        elsif url =~ /^..\//
+          parse_relative(url, owner)
+        end
       end
-    end
 
-    private
+      private
 
-    def parse_url(url)
-      parse(url, /^https?:\/\/[^\/]*\/([^\/]*)\/([^\/]*)\/.git$/)
-    end
+      def parse_relative(url, owner)
+        match = url.match(/^\.\.\/(?:\.\.\/(?<owner>[^\/]+)\/)?(?<repo>[^\/]+)$/)
+        return nil if match.nil? || (owner.nil? && match[:owner].nil?)
+        Repository.new(
+          organization: match[:owner] || owner,
+          repository: match[2]
+        )
+      end
 
-    def parse_ssh(url)
-      parse(url, /^git@[^:]*:([^\/]*)\/([^\/]*)\.git$/)
-    end
+      def parse_url(url)
+        parse(url, /^https?:\/\/[^\/]*\/([^\/]*)\/([^\/]*)\/.git$/)
+      end
 
-    def parse(url, regexp)
-      match = url.match(regexp)
-      return nil if match.nil?
-      Repository.new(
-        organization: match[1],
-        repository: match[2]
-      )
+      def parse_ssh(url)
+        parse(url, /^git@[^:]*:([^\/]*)\/([^\/]*)\.git$/)
+      end
+
+      def parse(url, regexp)
+        match = url.match(regexp)
+        return nil if match.nil?
+        Repository.new(
+          organization: match[1],
+          repository: match[2]
+        )
+      end
     end
   end
 end

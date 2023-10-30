@@ -59,7 +59,7 @@ module Helpers
   end
 
   def shadow_branch
-    source_branch + '_megamerge'
+    source_branch
   end
 
   def target_branch

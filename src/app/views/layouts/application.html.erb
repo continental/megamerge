@@ -12,7 +12,6 @@
   # See the License for the specific language governing permissions and
   # limitations under the License.
   #%>
-
 <!DOCTYPE html>
 <html>
   <head>
@@ -22,55 +21,72 @@
     <%= csrf_meta_tags %>
     <%= stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track' => true %>
     <%= javascript_include_tag 'application', 'data-turbolinks-track' => true %>
-    <%= yield :javascript_includes %>
+    <%= favicon_link_tag asset_path('favicon.ico') %>
   </head>
-<style>
-
-.mySeparator {
-  margin-right:5px;
-  margin-left:5px;
-}
-
-
-</style>
-
-  <body>
+  <body class="<%= controller_name %> <%= action_name %>">
     <div class="container-fluid">
       <div class="row" style="margin-top:5px">
-        <div class="col-sm-2"></div>
-        <div class="col-sm-8">
+        <div class="col-sm-3"></div>
+        <div class="col-sm-6">
           <h1 class='display-2 text-center'>
             Mega Merge
             <span style='font-size: 75px' class='octicon octicon-mark-github'></span>
           </h1>
           <h3 class='text-center'>A Multi-Pull-Request Workflow for GitHub</h3>
         </div>
-        <div class="col-sm-2 text-right">
+        <div class="col-sm-3 text-right">
           <% if @user %>
-                <div style="display: inline-block;">
-                  <p style="margin-top:10px"><%= @user.user.name =%></p>
-                </div>
-                <div style="display: inline-block;">
-                  <%= button_to 'Logout', { :controller => :session, :action => :logout }, :method => :get, :class => 'btn btn-danger' %>
-                </div>
+            
+            <h6>
+              <%= @user.user.name =%>
+              <a class="btn btn-sm octicon octicon-triangle-down" style="max-width:100%;" data-toggle="dropdown"></a>
+              <div class="dropdown-menu dropdown-menu-right">
+                <button class="btn dropdown-item" data-toggle="modal" data-target="#api-key-modal">Access token</button>
+                <div class="dropdown-divider"></div>
+                <%= link_to 'Logout', { :controller => :session, :action => :logout }, :method => :get, :class => 'btn btn-danger dropdown-item' %>
+              </div>
+            </h6>
           <% end %>
         </div>
       </div>
     </div>
-
-
-    <% flash.each do |key, value| %>
-      <div class="alert alert-<%= key %>"><%= value %></div>
+    <% if @user %>
+      <div class="modal" id="api-key-modal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Your access token</h5>
+              <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+            <div class="modal-body">
+              <%= text_field_tag 'api_token', @user.client.access_token, readonly: true, class: 'form-control' %>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
     <% end %>
+
     <br>
+    <% flash.each do |key, value| %>
+      <div class="text-center alert alert-<%= key %>"><%= simple_format(value) %></div>
+    <% end %>
 
     <%= yield %>
     <br>
-    <br><br>
+    <br>
+    <br>
     <div style='position:fixed;bottom:0;' class="footer">
       <div class='col-md-auto' style='font-family:monospace;'>
-        MEGAMERGE <%= Rails.application.config.version_number  %> - <span style="color:red">Do you need help? <a href="<%= Rails.application.config.manual %>">Click Here!</a></span>
+        <span data-delay='{ "hide": 2000 }' data-placement="top" data-toggle="popover" data-content="<%= Rails.application.config.version_hash %>">MEGAMERGE <%= Rails.application.config.version_number  %> </span>
+          <span style="color:red">Announcement: The Include Feature is enabled, if you want to disable it please check out <a href="https://confluence.auto.continental.cloud/pages/viewpage.action?pageId=1137951760">this documentation page.</a> 
+        <span style="color:red">Do you need help? <a href="<%= Rails.application.config.manual %>">Click Here!</a></span>
       </div>
     </div>
+    <%= yield :javascript_includes %>
   </body>
 </html>

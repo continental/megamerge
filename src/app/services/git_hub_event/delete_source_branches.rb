@@ -15,40 +15,33 @@
 # limitations under the License.
 
 module GitHubEvent
-  class DeleteSourceBranches
-    include Callable
-    include Loggable
-
-    def initialize(payload)
-      @payload = payload
-    end
+  class DeleteSourceBranches < EventProcessor
 
     def call
-      logger.info "DeleteSourceBranches: #{pull_request&.id}"
-      return 'Not a MM PR' unless parent_body || child_body
-      pull_request.delete_branches!
-      "deleting source branches of PR #{payload[:number]} in #{payload[:repository][:full_name]}\n"
+      if parent_body(payload[:pull_request]).present? || child_body(payload[:pull_request]).present?
+          repo.delete_branch!(source_branch)
+          repo.find_refs("mm/#{id}/")&.each{ |branch| repo.delete_ref(branch) } # delete temp branches
+      end
+    end
+      
+    def self.execute(org, repo, id)
+     # meta_pr_slug = org+'/'+repo+'/'+id
+     # # TODO: DELTE IMMEDIATELLY
+     # logger.info "deleting source branches from: #{meta_pr_slug}"
+     # with_flock(meta_pr_slug) do
+     #   meta_pr = MetaPullRequest.load(org,repo,id)
+     #   meta_pr.delete_source_branches!
+     # end
+
     end
 
-    private
-
-    attr_accessor :payload
-
-    def pull_request_body
-      payload[:pull_request][:body]
+    def id
+      payload[:number]
     end
 
-    def parent_body
-      @parent_body ||= MegaMerge::ParentDecoder.decode(pull_request_body)
+    def source_branch
+      payload[:pull_request][:head][:ref]
     end
 
-    def child_body
-      @child_body ||= MegaMerge::ChildDecoder.decode(pull_request_body)
-    end
-
-    def pull_request
-      @pull_request ||= MetaPullRequest.from_pull_request(payload[:pull_request]) ||
-                        PullRequest.from_github_data(payload[:pull_request])
-    end
   end
 end

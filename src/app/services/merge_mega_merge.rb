@@ -16,6 +16,7 @@
 
 class MergeMegaMerge
   include Callable
+  include Loggable
 
   def initialize(organization, repo, pull_id)
     @organization = organization
@@ -37,6 +38,7 @@ class MergeMegaMerge
 
   def meta_pr
     @meta_pr ||= MetaPullRequest.from_pull_request(pull_request)
+    #@meta_pr ||= MetaPullRequest.load(@organization, @repo, @pull_id) if PullRequest.id?(@pull_id)
   end
 
   def repository

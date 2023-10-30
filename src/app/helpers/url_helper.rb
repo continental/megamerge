@@ -15,7 +15,7 @@
 # limitations under the License.
 
 module UrlHelper
-  DEFAULT_GITHUB_BASE_URL = Rails.application.config.url
+  DEFAULT_GITHUB_BASE_URL = Rails.application.config.github[:server]
 
   def self.included(base)
     return if base.const_defined?(:GITHUB_BASE_URL)
