@@ -19,7 +19,8 @@ class PullRequestSerializer < BaseModel
 
   attr_accessor :id, :organization, :repository
   attr_accessor :target, :source, :shadow, :merged, :megamergeable, :merge_conflict
-  attr_accessor :merge_commit_message, :megamerge, :merge_commit, :children, :reviews_done
+  attr_accessor :merge_commit_message, :megamerge, :merge_commit, :children, :reviews_done, :mergeable_state, :rebaseable
+
 
   def self.from_pull_request(pull)
     new(
@@ -30,11 +31,13 @@ class PullRequestSerializer < BaseModel
       source: pull.source_branch,
       merged: pull.merged?,
       megamergeable: pull.megamergeable?,
+      mergeable_state: pull.mergeable_state,
       merge_conflict: pull.merge_conflict?,
       merge_commit: pull.merge_commit_sha,
       merge_commit_message: pull.merge_commit_message,
       megamerge: pull.parent? || !pull.children&.empty?,
       reviews_done: pull.reviews_done?,
+      rebaseable: pull.rebaseable?,
       children: children(pull)
     )
   end
@@ -52,11 +55,13 @@ class PullRequestSerializer < BaseModel
       'source' => '',
       'merged' => '',
       'megamergeable' => '',
+      'mergeable_state' => '',
       'merge_conflict' => '',
       'merge_commit' => '',
       'merge_commit_message' => '',
       'megamerge' => '',
       'reviews_done' => '',
+      'rebaseable' => '',
       'children' => ''
     }
   end

@@ -43,7 +43,9 @@ module MegaMerge
 
       def parse_projects(config_files)
         # read all repositories (projects) and store them in key value pair
+        # config_files = list of manifest filenames, e.g [default.xml, another_manifest.xml]
         # gp.key = <org>/<repo>/default.xml> , e.g vni-ce-gen-tst2/sub1SoZi/default.xml
+        # return projects: dict of GoogleProjects (Sub Repos), key is gp.key
         # multiple occurrences of repo are only stored once (due to chosen key) -> all are updated, duplicates are handled in "def updated_projects"
         @projects = Hash.new if @projects.nil?
 
@@ -71,13 +73,16 @@ module MegaMerge
           (p.dirty? && !p.revision.nil?) || p.remove?
         end
         # update multiple occurrences of repo in manifest
-        # this code part can be omitted when used key becomes unique -> TODO: find new key
+        # this code part can be omitted when used key becomes unique -> TODO: find new key (and make sure MM does not open duplicate sub if new key is established)
+        # If there are multiple entries of a project/sub-repo, only the first entry in the xml will be updated and then stored
+        # Open the xml file again (gp_tmp) and update every project revision, that is in the "updated revision list" (gp) from
+        # MM operation.
         @updated_projects.each do |_, gp|
           content(gp.config_file).xpath('//project').map do |project, hash|
             gp_tmp = GoogleProject.new(project, gp.config_file)
             gp_tmp.project_remote = find_remote(gp_tmp)
             if gp_tmp.project_remote&.valid?
-              if gp.key == gp_tmp.key
+              if gp.key == gp_tmp.key # if this sub repo was updated, update its duplicate entries
                 gp_tmp.revision = gp.revision
               end
             end

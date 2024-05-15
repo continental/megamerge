@@ -177,10 +177,17 @@
                       <a class="btn btn-light px-4" role="button"  href='<%= branch_url(@repo.organization, @repo.repository, @pr.target_branch) %>'>
                         <%= @pr.target_branch %>
                       </a>
-                      <button type="button" class="btn btn-sm btn-light button-checkbox ml-1" data-icon="package"
-                        data-toggle="popover"  data-placement="bottom" data-content="Squash" <%= ((@pr.merged? || @pr.closed? || !@pr.repository.allow_squash_merge || !@pr.repository.allow_merge_commit) ? "disabled" : "")%>>
-                        <input type="hidden" value="<%=@pr.squash%>" name="meta_repo[squash]" data-form-input="change">
-                      </button>
+
+                      <select name="meta_repo[merge_method]" data-form-input="change" data-icon-base="octicon"
+                              class="show-selectpicker input-sm" data-width="fit" <%= ((@pr.merged? || @pr.closed?) ? "disabled" : "") %>>
+                        <% if(@pr.merged? || @pr.closed?) %>
+                          <option><%= @pr.merge_method %></option>
+                        <% else %>
+                          <% @pr.repository.allowed_merge_methods.each do |merge_method| %>
+                            <option data-icon="octicon-package" <%= (merge_method == @pr.merge_method) ? "selected" : "" %>><%= merge_method %></option>
+                          <% end %>
+                        <% end %>
+
                       <% if(@repo.pr_templates.present?)%>
                         <% if(@pr.id == 0 && @repo.pr_templates.length() > 0)%>
                         <td class="align-middle">
@@ -205,6 +212,7 @@
                       <%=@pr.status[:checks]&.map { |check| "<br><a href='#{check.target_url}'>#{check.context}</a>" }&.join()&.html_safe %>
                     </span>
                   </td>
+
                 </tbody>
               </table>
             </div>

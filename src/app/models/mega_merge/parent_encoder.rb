@@ -48,7 +48,7 @@ module MegaMerge
         type: Encoder::PARENT_TYPE,
         config_file: meta_pr.config_file,
         source_branch: meta_pr.source_branch,
-        squash: meta_pr.squash?,
+        merge_method: meta_pr.merge_method,
         automerge: meta_pr.automerge?,
         merge_commit_message: meta_pr.merge_commit_message,
         children: children.map { |child| encode_child(child) },
@@ -60,7 +60,7 @@ module MegaMerge
       {
         id: child.id,
         name: child.repository.name,
-        squash: child.squash?,
+        merge_method: child.merge_method,
         config_file: child.config_file
       }
     end
@@ -68,7 +68,7 @@ module MegaMerge
     def header
       <<~HEADER
         ---
-        ## Mega Merge :tm:
+        ## Mega Merge
         #{Rails.application.config.url}/view/#{meta_pr.slug}
       HEADER
     end

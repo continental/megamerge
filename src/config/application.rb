@@ -37,7 +37,8 @@ module Megamerges
       end
     end
 
-    config.version_number = '3.9.6'
+
+    config.version_number = '3.12.1'
     # config.version_number+= '.' + File.read('build_version.txt') if File.exist?('build_version.txt')
     config.version_hash = 'unknown'
     config.version_hash = File.read('revision.txt') if File.exist?('revision.txt')

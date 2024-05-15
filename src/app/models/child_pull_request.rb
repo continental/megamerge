@@ -30,7 +30,7 @@ class ChildPullRequest < PullRequest
 
   def self.from_child_decoding_gql(gql_data, decoded, parent)
     pr = from_gql(gql_data)
-    pr.squash = decoded[:squash]
+    pr.merge_method = decoded[:merge_method]
     pr.config_file = decoded[:config_file]
     pr.parent = parent
     pr

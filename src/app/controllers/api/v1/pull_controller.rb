@@ -67,6 +67,46 @@ module Api
         end
       end
 
+      def check_summary
+        # Check and return the following:
+        # Dismiss stale pull request approvals (check on meta repo target branch): Disabled => OK
+        # Restrict who can push matching branches (check on meta and sub repositories): Disabled => OK
+        # MM access to repositories: MM has access to all repositories!
+        # {
+        # 	"dismiss_stale_pr": "OK",
+        # 	"restricted_push": "OK",
+        # 	"repo_access": "OK"
+        # }
+
+        checks= SettingsController.new
+        checks.checks_pullreq_from_params(params[:repository], params[:organization], params[:number])
+
+        if ((checks.stale_pull_req) && (checks.stale_pull_req==true))
+          stale = "NOK" # Enabled => NOK!
+        else
+          stale = "OK" # Disabled => OK
+        end
+
+        if (checks.restrict_push.empty?)
+          push = "OK" # Disabled => OK
+        else
+          push = "NOK!" # Enabled => NOK
+        end
+
+        if !(checks.repos_missing_mm.empty?)
+          access = "NOK, Missing:  #{checks.repos_missing_mm}"
+        else
+          if checks.pr_problems
+            access = "NOK, Problem with Repo access, Repositories where MM has access: #{checks.repos_bot.join(", ")}"
+          else
+            access = "OK"
+          end
+        end
+
+        return render json: { dismiss_stale_pr: stale, restricted_push: push,  repo_access: access}
+
+      end
+
       def check_rate_limit
         @rep = params[:repository]
         @org = params[:organization]

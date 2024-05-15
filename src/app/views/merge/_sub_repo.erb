@@ -79,7 +79,7 @@
     </div>
 
   </td>
-  <td class="text-right">
+  <td class="text-right align-middle">
     <select name="sub_repos[][source_branch]" data-id="<%=@row_id%>" data-live-search="true"
       class="show-selectpicker " data-width="fit" <%= ((child.merged? || child.closed?) ? "disabled" : "") %>>
       <% if(child.merged? || child.closed?) %>
@@ -105,10 +105,16 @@
       <a class="btn btn-light px-4" role="button" href='<%= branch_url(child.repository.organization, child.repository.repository, child.target_branch) %>'>
         <%= child.target_branch %>
       </a>
-      <button type="button" class="btn btn-sm btn-light button-checkbox ml-1" data-icon="package"
-        data-toggle="popover" data-placement="bottom" data-content="Squash" <%= ((child.merged? || child.closed? || !child.repository.allow_squash_merge || !child.repository.allow_merge_commit) ? "disabled" : "")%>>
-        <input type="hidden" value="<%=child.squash%>"name="sub_repos[][squash]" data-form-input="change">
-      </button>
+
+      <select name="sub_repos[][merge_method]" data-form-input="change" data-icon-base="octicon"
+              class="show-selectpicker input-sm" data-width="fit" <%= ((child.merged? || child.closed?) ? "disabled" : "") %>>
+        <% if(child.merged? || child.closed?) %>
+          <option><%= child.merge_method %></option>
+        <% else %>
+          <% child.repository.allowed_merge_methods.each do |merge_method| %>
+            <option data-icon="octicon-package" <%= (merge_method == child.merge_method) ? "selected" : "" %>><%= merge_method %></option>
+          <% end %>
+        <% end %>
     </div>
 
       <%if(child.id!=0)%>
@@ -124,10 +130,16 @@
         <% if(child.repository.pr_templates.kind_of?(Array)) %>
        <div>
         <select id="template_selection_sub_repos" name="sub_repos[][body]" data-id="<%=@row_id%>"
-            class="show-selectpicker " data-width="fit" title="Select template">
-            <option value=''><%="No template"%></option>
-            <% child.repository.pr_templates.each do |template| %>
-            <option value='<%= template[:body] %>' <%= (template[:body] == child.body) ? "selected" : "" %>><%= template[:filename] %></option>
+            class="show-selectpicker " data-width="fit" >
+            <% if child.repository.pr_templates.length == 1 %>
+              <option value='<%= child.repository.pr_templates[0][:body] %>' <%= (child.repository.pr_templates[0][:body] == child.body) ? "selected" : "" %>><%= child.repository.pr_templates[0][:filename] %> </option>
+              <option value='' <%= ('' == child.body) ? "selected" : "" %>><%="No template"%></option>
+            <% end %>
+            <% if child.repository.pr_templates.length != 1 %>
+              <option value=''><%="No template"%></option>
+              <% child.repository.pr_templates.each do |template| %>
+              <option value='<%= template[:body] %>' <%= (template[:body] == child.body) ? "selected" : "" %>><%= template[:filename] %></option>
+            <% end %>
           <%end %>
         </select>
        </div>
@@ -140,6 +152,9 @@
           </span>
         </td>
       <%end%>
+
+
+
   </td>
   <td class="text-right align-middle">
     <% if child.removeable? %>

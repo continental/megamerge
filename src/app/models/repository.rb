@@ -83,7 +83,7 @@ class Repository < BaseModel
     @object_id = data[:id]
   end
 
-  attr_accessor :organization, :repository, :forked_repos, :allow_squash_merge, :object_id, :allow_merge_commit, :allow_rebase_merge
+  attr_accessor :organization, :repository, :forked_repos, :allow_squash_merge, :object_id, :allow_merge_commit, :allow_rebase_merge, :allowed_merge_methods
   attr_accessor :pr_templates
   alias owner organization
 
@@ -140,6 +140,15 @@ class Repository < BaseModel
   def allow_merge_commit
     return @allow_merge_commit unless @allow_merge_commit.nil?
     @allow_merge_commit ||= repo.allow_merge_commit
+  end
+
+  def allowed_merge_methods
+    return @allowed_merge_methods unless @allowed_merge_methods.nil?
+    @allowed_merge_methods = []
+    @allowed_merge_methods.push("MERGE") if allow_merge_commit
+    @allowed_merge_methods.push("REBASE") if allow_rebase_merge
+    @allowed_merge_methods.push("SQUASH") if allow_squash_merge
+    @allowed_merge_methods
   end
 
   def branch_protection(branch)

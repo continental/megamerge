@@ -27,7 +27,7 @@ class PullRequest < BaseModel
     pr.id = params[:pull_id]
     pr.repository = Repository.new(organization: params[:organization], repository: params[:repository]) if pr.repository.kind_of?(String)
     pr.source_repository = Repository.from_name(params[:source_repo_full_name])
-    
+    pr.merge_method = params[:merge_method]
     pr
   end
 
@@ -43,6 +43,7 @@ class PullRequest < BaseModel
       source_repository: Repository.from_github_data(data[:head][:repo]),
       target_branch: data[:base][:ref],
       mergeable: data[:mergeable],
+      rebaseable: data[:rebaseable],
       merged: data[:merged],
       mergeable_state: data[:mergeable_state],
       merge_commit_sha: data[:merge_commit_sha],
@@ -68,6 +69,7 @@ class PullRequest < BaseModel
       source_repository: source_repo,
       target_branch: data[:baseRefName],
       mergeable: data[:mergeable].downcase,
+      rebaseable: data[:canBeRebased],
       merged: data[:merged],
       mergeable_state: data[:mergeStateStatus].downcase,
       merge_commit_sha: data[:mergeCommit].nil? ? data.dig(:potentialMergeCommit, :oid) : data.dig(:mergeCommit, :oid),
@@ -90,14 +92,14 @@ class PullRequest < BaseModel
   end
 
   attr_writer :target_branch, :source_branch, :shadow_branch
-  attr_writer :source_branch_sha, :source_repository
+  attr_writer :source_branch_sha, :source_repository, :merge_method
 
   attr_accessor :repository, :title, :body, :parent, :merge_commit_message, :commits, :merge_commit_sha
-  attr_accessor :merged, :mergeable, :mergeable_state, :state, :author, :object_id, :review_decision
-  attr_accessor :source_branch_object_id, :draft, :config_file, :required_checks
+  attr_accessor :merged, :mergeable, :rebaseable, :mergeable_state, :state, :author, :object_id, :review_decision
+  attr_accessor :source_branch_object_id, :draft, :config_file, :required_checks, :merge_method
 
   attribute_method_suffix '?'
-  define_attribute_methods :squash, :merged, :removeable, :parent
+  define_attribute_methods :merged, :removeable, :parent
 
   validates! :repository, presence: true
   validates :id, pull_request_number: true
@@ -163,22 +165,12 @@ class PullRequest < BaseModel
     true
   end
 
-  def squash
-    return true unless repository.allow_merge_commit
-    return false unless repository.allow_squash_merge
-    return true unless @squash.bool? # default value
-    @squash
-  end
-
-  def squash=(value)
-    @squash =
-      if value.bool?
-        value
-      elsif value.is_a? String
-        value != 'false'
-      else
-        true
-      end
+  def merge_method
+    return @merge_method unless @merge_method.nil?
+    @merge_method = "MERGE" if repository.allow_merge_commit
+    @merge_method = "REBASE" if repository.allow_rebase_merge
+    @merge_method = "SQUASH" if repository.allow_squash_merge   # last returned is default value for GUI
+    @merge_method
   end
 
   def status
@@ -256,6 +248,7 @@ class PullRequest < BaseModel
     }
     isDraft
     mergeable
+    canBeRebased
     merged
     mergeStateStatus
     mergeCommit {
@@ -388,6 +381,19 @@ class PullRequest < BaseModel
     mergeable? && !blocked? && !dirty? && !closed? && !behind? && !draft? && !state_unknown?
   end
 
+  def rebaseable?
+    return false if id == 0 || merged? || closed?
+
+    4.times { |c|
+      return rebaseable if rebaseable.bool?
+      logger.info("Rebaseable was not yet computed by GitHub")
+      sleep(2 * c)
+      GitHub::GQL.add(repository.name, GitHub::GQL.QUERY, PullRequest.create_gql_query('canBeRebased', repository.name, id, 'canBeRebased'))
+      (self.rebaseable = GitHub::GQL.execute[:canBeRebased][:pullRequest][:canBeRebased])
+    }
+    nil
+  end
+
   def merge_conflict?
     !mergeable? && dirty?
   end
@@ -417,6 +423,7 @@ class PullRequest < BaseModel
       -- review_decision => #{review_decision}
       -- draft => #{draft?}
       -- unknown => #{state_unknown?}
+      -- rebaseable => #{rebaseable?}
     TEXT
   end
 

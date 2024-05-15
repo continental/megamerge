@@ -1,6 +1,51 @@
 # Changelog
 All notable changes in MegaMerge will be documented in this file.
 
+## [3.12.1] - 05.15.2024
+### Added
+ - [Feature]: Fix text for OpenSource
+
+## [3.12.0] - 05.06.2024
+### Added
+ - [Feature]: Check PR summary as API call (check if: dismiss_stale_pr (disabled), restricted_push (disabled) and access to all included repos)
+### Changed
+
+### Removed
+
+## [3.11.0] - 03.14.2024
+### Added
+ - [Feature]: Subrepository template dropdown sets template default if there is only one template present
+
+### Changed
+
+### Removed
+
+## [3.10.2] - 02.12.2024
+### Added
+ - [Feature]: Show error messsage if merge method "rebase" is not possible on one of the repositories
+ - [Feature]: Show "rebaseable" state of each repo in GUI on xml file and as return value for API calls
+
+### Changed
+
+### Removed
+
+## [3.10.1] - 01.25.2024
+### Added
+ - [Feature]: Return 'mergeable_state' at retrieve pull request api call
+
+### Changed
+
+### Removed
+
+## [3.10.0] - 01.16.2024
+### Added
+ - [Feature]: Add dropdown to support all three merge methods SQUASH, REBASE and MERGE
+
+### Changed
+ - [Feature]: Remove merge method SQUASH toggle button 
+
+### Removed
+
 ## [3.9.7] - 10.17.2023
 ### Added
  - [Feature]: Add NOTICE.txt for update of MM Open Source repository

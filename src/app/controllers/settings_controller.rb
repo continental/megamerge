@@ -49,20 +49,106 @@ class SettingsController < ApplicationController
     "
   end
 
+
+  def check_repo_settings(repos_bot)
+    _pr = Api::ParentPull.call(@orgg, @rep, @prid)
+    @repos_missing_mm = Array.new
+    if !((repos_bot) && (repos_bot.include? _pr.repository.name))
+      @repos_missing_mm << _pr.repository.name
+    end
+
+    # get branch protection rules for target branch meta repo
+    @branch_prot = _pr.repository.branch_protection(_pr.target_branch)
+
+    @restrict_push = Array.new
+    if (@branch_prot)
+      if (@branch_prot[:required_pull_request_reviews])
+        @stale_pull_req =  @branch_prot[:required_pull_request_reviews][:dismiss_stale_reviews]
+      end
+      if (@branch_prot[:restrictions])
+        @restrict_push <<  _pr.repository.name
+      end
+    end
+
+    #get branch protection rules for target branch sub repos
+    @subBranchProt = Array.new
+    begin
+      _pr.children.map do |child|
+        # if !child.repository.branch_protection(child.target_branch).nil?
+        if (child.repository.branch_protection(child.target_branch))
+          _temp = child.repository.branch_protection(child.target_branch)
+          _temp[:name] = child.repository.name
+          @subBranchProt <<  _temp
+          if (_temp[:restrictions])
+            @restrict_push << child.repository.name
+          end
+        end
+
+        unless (repos_bot) && (repos_bot.include? child.repository.name) # fails if child is in different org
+          child_org = child.repository.name.split('/')[0]
+          unless (child_org == @orgg)
+            tmp_bot, bot_client, rate_limit_bot, org_install_info = create_repo_bots(child_org)
+            unless (tmp_bot) && (tmp_bot.include? child.repository.name)
+              @repos_missing_mm << child.repository.name
+            end
+          else
+            @repos_missing_mm << child.repository.name
+          end
+        end
+      end
+    rescue Octokit::NotFound => e
+      @pr_problems = e.message
+    rescue NoMethodError => e
+      @pr_problems = e.message
+    end
+
+  end
+
+  attr_accessor :stale_pull_req, :restrict_push, :repos_missing_mm, :pr_problems
+
+  def create_repo_bots(orgg)
+    # get repositories where MM has access in organization
+    repos_bot ||= GitHub::Bot.organization_repos(orgg)
+    #get MM installation info for the organization
+    org_install_info ||= GitHub::App.new.find_organization_installation(orgg)
+
+    # API rate limit for bot client
+    bot_client ||= GitHub::Bot.from_organization(orgg)
+    rate_limit_bot ||=bot_client.rate_limit()
+    #@rate_limit_remaining_bot ||=@bot_client.rate_limit.remaining().to_json
+
+
+    if (repos_bot)
+      repos_bot = repos_bot.map { |repo|  "#{orgg}/" + repo }
+      if (org_install_info)
+        if (org_install_info[:repository_selection].eql? "selected")
+          org_install_info[:repository_selection]=repos_bot.join(", ")
+        end
+      end
+    end
+
+    return repos_bot, bot_client, rate_limit_bot, org_install_info
+  end
+
+  attr_accessor :repos_bot
+
+  # called by API pull_controller
+  def checks_pullreq_from_params(rep, orgg, prid)
+    @rep = rep
+    @orgg = orgg
+    @prid = prid
+
+    repos_bot, bot_client, rate_limit_bot, org_install_info = self.create_repo_bots(orgg)
+    self.check_repo_settings(repos_bot)
+  end
+
+  # called in GUI
   def checks_pullreq
     @rep = params[:repository]
     @orgg = params[:organization]
     @prid = params[:pull_id]
 
-    # get repositories where MM has access in organization
-    @repos_bot ||= GitHub::Bot.organization_repos(@orgg)
-    #get MM installation info for the organization
-    @org_install_info ||= GitHub::App.new.find_organization_installation(@orgg)
-
-    # API rate limit for bot client
-    @bot_client ||= GitHub::Bot.from_organization(@orgg)
-    @rate_limit_bot ||=@bot_client.rate_limit()
-    #@rate_limit_remaining_bot ||=@bot_client.rate_limit.remaining().to_json
+    @repos_bot, @bot_client, @rate_limit_bot, @org_install_info = self.create_repo_bots(@orgg)
 
     # API rate limit for current user
     @rate_limit_user ||=@user.rate_limit()
@@ -76,58 +162,10 @@ class SettingsController < ApplicationController
     #GraphQl limit for bot client
     if (@bot_client.last_response)
       @gql_rate_bot = @bot_client.last_response.data[:resources][:graphql]
-    end 
-   
-    if (@repos_bot)
-      @repos_bot = @repos_bot.map { |repo|  "#{@orgg}/" + repo }
-      if (@org_install_info)
-        if (@org_install_info[:repository_selection].eql? "selected")
-          @org_install_info[:repository_selection]=@repos_bot.join(", ")
-        end
-      end
     end
 
-    _pr = Api::ParentPull.call(params[:organization], params[:repository], params[:pull_id])     
-    @repos_missing_mm = Array.new
-    if !((@repos_bot) && (@repos_bot.include? _pr.repository.name))
-      @repos_missing_mm << _pr.repository.name
-    end
+    self.check_repo_settings(@repos_bot)
 
-    # get branch protection rules for target branch meta repo
-    @branch_prot = _pr.repository.branch_protection(_pr.target_branch)
-
-    @restrict_push = Array.new
-    if (@branch_prot)   
-      if (@branch_prot[:required_pull_request_reviews])
-        @stale_pull_req =  @branch_prot[:required_pull_request_reviews][:dismiss_stale_reviews]
-      end  
-      if (@branch_prot[:restrictions])
-        @restrict_push <<  _pr.repository.name
-      end
-    end    
-
-    #get branch protection rules for target branch sub repos
-   @subBranchProt = Array.new
-    begin
-      _pr.children.map do |child|
-      # if !child.repository.branch_protection(child.target_branch).nil?
-      if (child.repository.branch_protection(child.target_branch))
-        _temp = child.repository.branch_protection(child.target_branch)
-        _temp[:name] = child.repository.name
-        @subBranchProt <<  _temp
-        if (_temp[:restrictions])
-          @restrict_push << child.repository.name
-        end
-      end
-      if !((@repos_bot) && (@repos_bot.include? child.repository.name))
-        @repos_missing_mm << child.repository.name
-      end          
-    end 
-      rescue Octokit::NotFound => e
-        @pr_problems = e.message
-      rescue NoMethodError => e
-        @pr_problems = e.message
-      end 
   end
     
 end

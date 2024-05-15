@@ -80,10 +80,10 @@ class PullRequest
 
     def create_gql_merge_mutation
       return if merged?
-      logger.info "merging #{repository.name}/#{id} squash: #{squash}"
+      logger.info "merging #{repository.name}/#{id} merge method: #{@merge_method}"
+      raise "No merge method selected for #{repository.name}/#{id}" if @merge_method.blank?
 
-      merge_action = "MERGE"
-      merge_action = "SQUASH" if squash?
+      merge_action = @merge_method
 
       hash = "h_#{simple_name}" + SecureRandom.alphanumeric(10)
       "

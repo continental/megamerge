@@ -38,7 +38,7 @@ module MegaMerge
     def header
       <<~HEADER
         ---
-        ## MegaMerge :tm:
+        ## MegaMerge
         This Pull Request is part of a MegaMerge Pull Request #{pull_request.parent.md_link}.
         Do **NOT** press the _merge button_ down below!
         Do **NOT** delete this description, but add your optional description above this generated content!

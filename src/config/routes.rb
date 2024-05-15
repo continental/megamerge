@@ -57,6 +57,7 @@ Rails.application.routes.draw do
         post '/:number/commit/message', to: 'api/v1/pull#commit_message'
         get '/:number/hash', to: 'api/v1/pull#update_config_file'
         get '/:number/ready_for_review', to: 'api/v1/pull#ready_for_review'
+        get '/:number/check_summary', to: 'api/v1/pull#check_summary'
       end
     end
   end

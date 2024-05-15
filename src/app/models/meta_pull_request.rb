@@ -34,7 +34,7 @@ class MetaPullRequest < PullRequest
       ))
       pr.children.each { |child| child.parent = pr }
       logger.info "from params "
-      pr.children_lazy_load = pr.children.map { |child| {:name => child.repository.name, :id => child.id , :squash => child.squash } }
+      pr.children_lazy_load = pr.children.map { |child| {:name => child.repository.name, :id => child.id , :merge_method => child.merge_method } }
 
       pr
     end
@@ -81,7 +81,7 @@ class MetaPullRequest < PullRequest
     return self if decoded.nil?
 
     @body = decoded[:body]
-    @squash = decoded[:config][:squash]
+    @merge_method = decoded[:config][:merge_method]
     @automerge = decoded[:config][:automerge]
     @source_branch = decoded[:config][:source_branch]
     @config_file = decoded[:config][:config_file]

@@ -81,7 +81,10 @@ class MetaPullRequest
 
     def refresh_children!
       return if @children.nil? # childs were not loaded yet anyway
-      @children_lazy_load = children.map { |child| {:name => child.repository.name, :id => child.id, :squash => child.squash?, :config_file => child.config_file } }
+      @children_lazy_load = children.map { |child| {:name => child.repository.name, 
+                                                    :id => child.id,
+                                                    :config_file => child.config_file,
+                                                    :merge_method => child.merge_method } }
       @children = nil 
       #children.map(&:refresh!)
     end
@@ -243,6 +246,8 @@ class MetaPullRequest
           (logger.info "missing child reviews"; break) if (not children.all?(&:reviews_done?) and children.any?(&:blocked?))
           (logger.info "child blocked, retry ..."; next) if children.any?(&:blocked?)
           (logger.info "child state unkown, retry ..."; next) if children.any?{|child| child.state_unknown? && !child.merged?}
+          (logger.info "Can not rebase one or multiple subs. Check your selected merge method"; break) if children.any?{|child| child.merge_method == "REBASE" && !child.rebaseable?}
+
           merge_state!
           return
         end
@@ -275,6 +280,7 @@ class MetaPullRequest
       (logger.info 'not megamergeable';logger.info readable_mergeability; return) if !megamergeable?
       (logger.info 'children outdated'; return) if config_outdated?
       (logger.info 'config file inconsistent'; return) if config_inconsistent?
+      raise "Can not rebase one or multiple subs. Check your selected merge method" if children.any?{|child| child.merge_method == "REBASE" && !child.rebaseable?}
 
       logger.info "beginning automerge of #{repository.name} #{id}"
       merge_children!
