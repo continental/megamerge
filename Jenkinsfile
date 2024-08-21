@@ -13,9 +13,6 @@
  * limitations under the License.
  */
 
-def megamerge
-def deploy
-
 pipeline
 {
   agent
@@ -46,8 +43,7 @@ pipeline
                 chmod 0644 ./src/credentials.yml
               ''')
 
-              megamerge = docker.build('megamerge')
-              megamerge.push(env.BRANCH_NAME)
+              docker.build('megamerge').push(env.BRANCH_NAME)
             }
           }
         }
