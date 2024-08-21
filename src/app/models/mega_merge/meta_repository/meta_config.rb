@@ -35,13 +35,15 @@ module MegaMerge
       end
 
       def update_hash!(child, meta_pr) #children_pullrequest
-        _name = child.full_identifier
-        _sha = child.merge_commit_sha
-        _sha = child.source_branch_sha if meta_pr.draft? # dev checkout get consistently his changes without updates from others (the temporary merge hash would have master updates included)
-        return if projects[_name]&.revision == _sha # might be costly in submodule case
+        # full_identifier is array since child can occur in multiple config files
+        child.full_identifier.each do |_name|
+          _sha = child.merge_commit_sha
+          _sha = child.source_branch_sha if meta_pr.draft? # dev checkout get consistently his changes without updates from others (the temporary merge hash would have master updates included)
+          return if projects[_name]&.revision == _sha # might be costly in submodule case
 
-        logger.info "updating hash of #{_name} from #{projects[_name]&.revision} to #{_sha}"
-        projects[_name]&.revision = _sha
+          logger.info "updating hash of #{_name} from #{projects[_name]&.revision} to #{_sha}"
+          projects[_name]&.revision = _sha
+        end
       end
 
       def update!(children, meta_pr)
@@ -51,14 +53,19 @@ module MegaMerge
 
       def outdated?(children, meta_pr)
         return true if dirty?
-        children.any? do |child|
-          projects[child.full_identifier] &&
-            (projects[child.full_identifier].revision != child.merge_commit_sha && !meta_pr.draft?) ||
-          projects[child.full_identifier] &&
-            (projects[child.full_identifier].revision != child.source_branch_sha && meta_pr.draft?)
-          # && child.merge_commit_sha.present? # disabled because PR creation fails as no commit is created at all
+        result = false
+        children.each do |child|
+          child.full_identifier.each do |_name|
+            if projects[_name] &&
+              (projects[_name].revision != child.merge_commit_sha && !meta_pr.draft?) ||
+            projects[_name] &&
+              (projects[_name].revision != child.source_branch_sha && meta_pr.draft?)
+              return true
+            end
+            # && child.merge_commit_sha.present? # disabled because PR creation fails as no commit is created at all
+          end
         end
-        
+        result
       end
 
       def dirty?
@@ -67,9 +74,15 @@ module MegaMerge
 
     
       def inconsistent?(children)
-        children.any? do |child|
-          !(projects.include? child.full_identifier) && !(child.full_identifier.include? ".gitmodules") # no consistency check for .gitmodules, TODO: remove after all currently open PRs are updated
+        result = false
+        children.each do |child|
+          child.full_identifier.each do |_name|
+            unless projects.include? _name
+              return true
+            end
+          end
         end
+        result
       end
 
       def commit_changes(commit_to_base_on, source_branch, commit_message)

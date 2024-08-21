@@ -208,10 +208,14 @@ $('.merge.show').ready(function () {
 
     // if a sub repo is not already in the subRepos
     function addSubRepo() {
+        add_button_default = $selectSubRepos.val()
+        parts_add_button = add_button_default.split('/')
+        add_button_default = add_button_default.replace(/,/g, ', ' + parts_add_button[0] + '/' + parts_add_button[1] + '/')
         if($selectSubRepos.val() == ""){
             return;
         }
-        if (hasExistingRow($selectSubRepos.val())) {
+
+        if (hasExistingRow(add_button_default)) {
             $selectSubRepos.selectpicker('val',null);
             return;
         }
@@ -227,7 +231,7 @@ $('.merge.show').ready(function () {
     }
   
    // get call for sub repo, appends response to subRepos
-   function appendSubRepo(owner, repo, source_branch, target_branch, parent_full_name, parent_id, config_file) {
+   function appendSubRepo(owner, repo, source_branch, target_branch, parent_full_name, parent_id, config_files) {
         loader.inc()
         return postSubrepoAction(
             getSubRepoRow({ organization: owner, 
@@ -238,7 +242,7 @@ $('.merge.show').ready(function () {
                             parent_id,
                             removeable: true,
                             source_repo_full_name: owner + "/" + repo,
-                            config_file
+                            config_files
                           })
                 .then(res => $subRepos.append(res))
                 .then(_ => $selectSubRepos.selectpicker('val',null))
@@ -255,7 +259,7 @@ $('.merge.show').ready(function () {
             target_branch: $('input[name="meta_repo\[target_branch\]"]').val(),
             pull_id: pr_id,
             source_repo_full_name: owner + "/" + repository,
-            config_file: config_file
+            config_files: config_files
         };
         loader.inc();
         return postSubrepoAction(

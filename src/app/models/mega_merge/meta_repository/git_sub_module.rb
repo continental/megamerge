@@ -25,7 +25,7 @@ module MegaMerge
       attr_accessor :path, :source_branch, :repository, :parent_repository
 
 
-      def config_file
+      def config_files
         path
       end
 

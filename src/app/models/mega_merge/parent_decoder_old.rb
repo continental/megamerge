@@ -38,7 +38,7 @@ module MegaMerge
       config = {
         squash: (metaconfig[3] == 'true' || metaconfig[3].empty?),
         source_branch: metaconfig[2],
-        config_file: metaconfig[1],
+        config_files: metaconfig[1],
         type: Encoder::PARENT_TYPE
       }
       config[:children] = []

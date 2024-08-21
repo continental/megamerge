@@ -25,7 +25,7 @@ class MetaPullRequest < PullRequest
 
   class << self
     def create(pull_request, config_file: nil)
-      new(config_file: config_file).merge_instance!(pull_request)
+      new(config_files: config_file).merge_instance!(pull_request)
     end
 
     def from_params(params)
@@ -84,7 +84,7 @@ class MetaPullRequest < PullRequest
     @merge_method = decoded[:config][:merge_method]
     @automerge = decoded[:config][:automerge]
     @source_branch = decoded[:config][:source_branch]
-    @config_file = decoded[:config][:config_file]
+    @config_files = decoded[:config][:config_files] ? decoded[:config][:config_files] : [decoded[:config][:config_file]]
     @merge_commit_message = decoded[:config][:merge_commit_message]
 
     # load children when they are requested
@@ -93,7 +93,7 @@ class MetaPullRequest < PullRequest
     # fill meta config_file if child does not have one
     # this is needed to make old PRs compatible with the new meta_config during migration to new MM version (3.8)
     @children_lazy_load.each {|child|
-      child[:config_file] = @config_file if child[:config_file].nil?
+      child[:config_files] = @config_files if child[:config_files].nil?
     }
 
     self
@@ -130,6 +130,8 @@ class MetaPullRequest < PullRequest
 
     request_string = @children_lazy_load.each { |child| 
       #logger.info "lazy loading: #{child.to_json}"
+      child[:config_files] = JSON.parse child[:config_files] unless child[:config_files].kind_of?(Array)
+      child[:config_files] = (child[:config_files]).compact.uniq
       GitHub::GQL.add(child[:name], GitHub::GQL.QUERY, ChildPullRequest.create_gql_query("h_#{child.hash.abs}", child[:name], child[:id]) )
     }
 
@@ -171,8 +173,18 @@ class MetaPullRequest < PullRequest
     super && children.all?(&:megamergeable?)
   end
 
-  def affected_config_files 
-    ([config_file] + children.map(&:config_file)).compact.uniq
+  def affected_config_files
+    # will add all used found arrays of config files of sub prs to parsed config files
+    # returns array of unique config files
+    @config_files = JSON.parse @config_files unless @config_files.kind_of?(Array) # fix array parsed as string
+
+    used_sub_pr_children = children.map(&:config_files) # actual listed config files in sub pr list
+    used_sub_pr_children.each do |conf|
+      conf = JSON.parse conf unless conf.kind_of?(Array) # fix array parsed as string
+      @config_files.concat(conf)
+    end
+
+    @config_files = (@config_files).compact.uniq  # remove dublicates
   end
 
   def readable_mergeability

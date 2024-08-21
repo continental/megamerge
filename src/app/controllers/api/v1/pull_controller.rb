@@ -191,9 +191,9 @@ module Api
         meta_params =
           params
           .require(:meta_repo)
-          .permit(:source_branch, :target_branch, :title, :body, :config_file, :merge_commit_message)
+          .permit(:source_branch, :target_branch, :title, :body, :merge_commit_message, :config_files => [])
           .tap do |meta_repo_params|
-            meta_repo_params.require(%i[source_branch target_branch title config_file])
+            meta_repo_params.require(%i[source_branch target_branch title config_files])
           end
 
         meta_params[:organization] = params[:organization]
@@ -204,7 +204,7 @@ module Api
 
       def sub_repos_params
         params[:sub_repos] ||= []
-        params.permit(sub_repos: %i[organization repository source_branch target_branch config_file])
+        params.permit(sub_repos: [:organization, :repository, :source_branch, :target_branch, :config_files => [] ])
       end
 
       def check_bearer

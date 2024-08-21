@@ -84,7 +84,7 @@ RSpec.feature 'MegaMerges', type: :feature do
       expect(find_hidden_input('meta_repo[organization]').value).to eq(organization)
       expect(find_hidden_input('meta_repo[source_branch]').value).to eq(source_branch)
       expect(find_hidden_input('meta_repo[shadow_branch]').value).to eq(shadow_branch)
-      expect(find_hidden_input('meta_repo[config_file]').value).to eq(xml_file)
+      expect(find_hidden_input('meta_repo[config_files]').value).to eq(xml_file)
       expect(find_input('meta_repo[title]').value).to eq(default_title)
     end
 

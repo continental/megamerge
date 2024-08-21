@@ -81,9 +81,9 @@ class MetaPullRequest
 
     def refresh_children!
       return if @children.nil? # childs were not loaded yet anyway
-      @children_lazy_load = children.map { |child| {:name => child.repository.name, 
+      @children_lazy_load = children.map { |child| {:name => child.repository.name,
                                                     :id => child.id,
-                                                    :config_file => child.config_file,
+                                                    :config_files => child.config_files,  # action should
                                                     :merge_method => child.merge_method } }
       @children = nil 
       #children.map(&:refresh!)
@@ -122,7 +122,9 @@ class MetaPullRequest
       changed_children = []
       meta_config.updated_projects.map { |name, _project|
         children.each {|child|
-          changed_children.push child if child.full_identifier.eql?(_project.key)
+          child.full_identifier.each do |_name|
+            changed_children.push child if _name.eql?(_project.key)
+          end
         }
       }
       changed_children.each do |cc|
@@ -376,7 +378,7 @@ class MetaPullRequest
 
     def find_target_repositories(target_branch)
       # TODO can be optimized with GQL
-      repos = meta_config.projects.map { |_, project| [Repository.new(organization: project.org, repository: project.name), project.config_file] }
+      repos = meta_config.projects.map { |_, project| [Repository.new(organization: project.org, repository: project.name), [project.config_files]] }
       repos.select do |repo, _|
         begin
           repo.branches.any? { |branch| branch[:name].eql?(target_branch) }

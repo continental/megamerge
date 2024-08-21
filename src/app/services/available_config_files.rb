@@ -27,7 +27,13 @@ class AvailableConfigFiles
   def call
     return filenames.first if filenames.count == 1
 
-    filenames
+    @all_config_files = filenames
+    configuration = ReadXMLFiles.new(@all_config_files, @organization, @repo, target_branch, source_branch)
+    top = configuration.top_level_xml
+
+    top
+
+
   end
 
   private
@@ -85,4 +91,6 @@ class AvailableConfigFiles
     
     "
   end
+
+
 end

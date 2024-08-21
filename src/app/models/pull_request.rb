@@ -28,6 +28,7 @@ class PullRequest < BaseModel
     pr.repository = Repository.new(organization: params[:organization], repository: params[:repository]) if pr.repository.kind_of?(String)
     pr.source_repository = Repository.from_name(params[:source_repo_full_name])
     pr.merge_method = params[:merge_method]
+    pr.config_files = params[:config_files] ? params[:config_files] : params[:config_file]
     pr
   end
 
@@ -96,7 +97,7 @@ class PullRequest < BaseModel
 
   attr_accessor :repository, :title, :body, :parent, :merge_commit_message, :commits, :merge_commit_sha
   attr_accessor :merged, :mergeable, :rebaseable, :mergeable_state, :state, :author, :object_id, :review_decision
-  attr_accessor :source_branch_object_id, :draft, :config_file, :required_checks, :merge_method
+  attr_accessor :source_branch_object_id, :draft, :config_files, :required_checks, :merge_method
 
   attribute_method_suffix '?'
   define_attribute_methods :merged, :removeable, :parent
@@ -136,7 +137,19 @@ class PullRequest < BaseModel
   end
 
   def full_identifier
-    repository.name + "/" + config_file.to_s
+    # return array of full_identifier forall config_files in array
+
+    # Needs to be @var, not local var, else ruby looses access to the variable (sometimes, not sure why).
+    # It will be and array and nil in this method, always the opposite of what you need.
+    # https://stackoverflow.com/questions/7208768/is-it-possible-to-use-pointers-in-ruby
+    # repository.name + "/" + config_files.to_s
+
+    fi = []
+    @config_files = JSON.parse @config_files unless @config_files.kind_of?(Array)
+    @config_files.map { |file| 
+    file = file.to_s.gsub(',', ',' + ' ' + repository.name + '/')  
+    fi.push(repository.name + "/" + file.to_s) }
+    fi
   end
 
 

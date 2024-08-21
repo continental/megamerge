@@ -12,7 +12,7 @@
   # See the License for the specific language governing permissions and
   # limitations under the License.
   #%>
-<% @row_id = "subrepos/" + child.full_identifier %>
+<% @row_id = "subrepos/" + (child.full_identifier.to_s).tr('[]"','') %>
 <tr id="<%=@row_id%>">
   <input name="sub_repos[][removeable]" type="hidden" value="<%=child.removeable%>">
   <input name="sub_repos[][pull_id]" type="hidden" value="<%=child.id%>">
@@ -92,9 +92,11 @@
     </select>
   </td>
   <td class="text-center" style="width:130px;position:relative;padding:5px;line-height: 120%;" title="<%=child.readable_mergeability%>">
-    <sub>(<%=child.config_file%>)</sub>
+    <sub><%=(child.config_files.to_s).tr('[]"','')%></sub>
     <br>
-    <input name="sub_repos[][config_file]" type="hidden" value="<%=child.config_file%>">
+    <%child.config_files = child.config_files.to_s.gsub('", "',',')%>
+    <%child.config_files = child.config_files.to_s.gsub(',','", "')%>
+    <input name="sub_repos[][config_files]" type="hidden" value="<%=child.config_files%>">
     <svg height="16" viewBox="0 16 48 32" version="1.1" aria-hidden="true">
       <path fill-rule="evenodd" d="M26 16 L34 30 L0 30 L0 34 L34 34 L26 48 L46 32 Z"></path>
     </svg>

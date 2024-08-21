@@ -154,7 +154,7 @@
                     </a>
                   </td>
                   <td class="text-center" style="width:130px;position:relative;padding:5px;line-height: 120%;" title="<%=@pr.method(:readable_mergeability).super_method.call%>">
-                    <sub>( <%=@pr.config_file%>
+                    <sub><%=(@pr.config_files.to_s).tr('[]"','')%>
                       <% if (!@pr.draft?) %>
                         <% if(@pr.id? && @pr.config_outdated?) %>
                           <span class="text-danger">- outdated</span>
@@ -163,10 +163,9 @@
                           <span class="text-danger">- inconsistent</span>
                         <% end %>
                       <% end %>
-                      )
                     </sub>
                     <br>
-                    <input name="meta_repo[config_file]" type="hidden" value="<%= @pr.config_file %>">
+                    <input name="meta_repo[config_files]" type="hidden" value="<%= @pr.config_files %>">
                     <svg height="16" viewBox="0 16 48 32" version="1.1" aria-hidden="true">
                       <path fill-rule="evenodd" d="M26 16 L34 30 L0 30 L0 34 L34 34 L26 48 L46 32 Z"></path>
                     </svg>
@@ -326,7 +325,7 @@
 <%= javascript_tag do %>
   var owner = '<%= @pr.repository.organization %>';
   var repository = '<%= @pr.repository.repository %>';
-  var config_file = '<%= @pr.config_file %>';
+  var config_files = '<%= @pr.config_files %>';
   var pr_id = <%= @pr.id || 0 %>;
   var pr_outdated = <%= @pr.config_outdated? || @pr.dirty? %>;
   var pr_inconsistent = <%= @pr.config_inconsistent? || @pr.dirty? %>;

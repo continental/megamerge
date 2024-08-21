@@ -20,7 +20,8 @@ $('.merge.step4').ready(function () {
 
     const data = $('#data').data();
     $('#continue').on('click', function () {
+        const manifests = $('#file-select').val().toString().replaceAll(",","/")
         window.location.pathname =
-            `/create/${data.organization}/${data.repository}/${encodeURIComponent(data.source_branch)}/${encodeURIComponent(data.target_branch)}/${$('#file-select').val()}`;
+            `/create/${data.organization}/${data.repository}/${encodeURIComponent(data.source_branch)}/${encodeURIComponent(data.target_branch)}/${manifests}`;
     });
 });

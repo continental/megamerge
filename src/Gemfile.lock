@@ -266,7 +266,7 @@ DEPENDENCIES
   logstash-logger
   nokogiri
   octicons-rails!
-  octokit (~> 4.8)
+  octokit (~> 4.21)
   parallel
   pg
   popper_js

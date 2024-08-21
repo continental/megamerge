@@ -14,14 +14,14 @@ Rails.application.routes.draw do
           constraints: {
             source_branch: /[\w\.\-\%]+/,
             target_branch: /[\w\.\-\%]+/,
-            config_file: /[\w\.\-]+/
+            config_files: /[\w\.\-]+/
           },
           format: false do
       get  '/',                                                                     to: 'merge#step3',          as: 'step1'
       get  '/:organization',                                                        to: 'merge#step3',          as: 'step2'
       get  '/:organization/:repository',                                            to: 'merge#step3',          as: 'step3'
       get  '/:organization/:repository/:source_branch/:target_branch',              to: 'merge#step4',          as: 'step4'
-      get  '/:organization/:repository/:source_branch/:target_branch/:config_file', to: 'merge#show',           as: 'final',       format: 'html'
+      get  '/:organization/:repository/:source_branch/:target_branch/*config_files', to: 'merge#show',          as: 'final',       format: 'html'
     end
 
     scope 'view/:organization/:repository', format: false do

@@ -78,8 +78,8 @@ module MegaMerge
         # Open the xml file again (gp_tmp) and update every project revision, that is in the "updated revision list" (gp) from
         # MM operation.
         @updated_projects.each do |_, gp|
-          content(gp.config_file).xpath('//project').map do |project, hash|
-            gp_tmp = GoogleProject.new(project, gp.config_file)
+          content(gp.config_files).xpath('//project').map do |project, hash|
+            gp_tmp = GoogleProject.new(project, gp.config_files)
             gp_tmp.project_remote = find_remote(gp_tmp)
             if gp_tmp.project_remote&.valid?
               if gp.key == gp_tmp.key # if this sub repo was updated, update its duplicate entries
@@ -92,7 +92,7 @@ module MegaMerge
       end
 
       def updated_config_files
-        updated_projects.map{ |_, proj| proj.config_file }.compact.uniq
+        updated_projects.map{ |_, proj| proj.config_files }.compact.uniq
       end
 
       def tree_changes
@@ -115,11 +115,11 @@ module MegaMerge
       end
 
       def find_remote(project)
-        if project.remote.nil? and default_remote(project.config_file).nil?
-          raise MegamergeException,"No default remote or project remote was given for subrepo #{project.name} in #{project.config_file}"
+        if project.remote.nil? and default_remote(project.config_files).nil?
+          raise MegamergeException,"No default remote or project remote was given for subrepo #{project.name} in #{project.config_files}"
         end
-        return default_remote(project.config_file) if project.remote.nil?
-        remotes(project.config_file)[project.remote]
+        return default_remote(project.config_files) if project.remote.nil?
+        remotes(project.config_files)[project.remote]
         end
 
       def content(file)

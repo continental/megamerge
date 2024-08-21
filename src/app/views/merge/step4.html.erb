@@ -59,7 +59,7 @@
       <div class='form-group row'>
         <label class="col-sm-3 col-form-label">Select the <strong>file</strong> in which the adaptions should be made</label>
         <div class='col-sm col-form-label'>
-          <select id="file-select" class="form-control">
+          <select id="file-select" class="form-control" multiple>
             <% @files.each do |name| %>
               <option <%= name %> <%= (name=="default.xml" ? "selected" : "")%>><%= name %></option>
             <% end %>

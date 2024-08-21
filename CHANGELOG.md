@@ -1,6 +1,16 @@
 # Changelog
 All notable changes in MegaMerge will be documented in this file.
 
+## [3.13.0] - 08.14.2024
+### Added
+ - [Feature]: Support multiple manifest files from one meta. The user can select one or more top level (not already included in other manifest files)
+			  manifest files. All provided Repositories are scanned for possible PRs to be opned. If there is a Repository present in more than one of 
+			  the manifest files, its hash will be udpated in all of them.
+        
+### Changed
+
+### Removed
+
 ## [3.12.1] - 05.15.2024
 ### Added
  - [Feature]: Fix text for OpenSource
@@ -8,6 +18,7 @@ All notable changes in MegaMerge will be documented in this file.
 ## [3.12.0] - 05.06.2024
 ### Added
  - [Feature]: Check PR summary as API call (check if: dismiss_stale_pr (disabled), restricted_push (disabled) and access to all included repos)
+
 ### Changed
 
 ### Removed

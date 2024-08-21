@@ -24,7 +24,9 @@ class MegaMergePullRequest
     @source_branch = params[:source_branch]
     @target_branch = params[:target_branch]
     @pull_id = params[:pull_id].to_i
-    @config_file = params[:config_file]
+    @config_files = params[:config_files]
+    @config_files = JSON.parse params[:config_files].gsub('&quot;', '"') if params[:config_files].kind_of?(String)
+    params[:config_files] = @config_files
     params[:source_repo_full_name] = @org + "/" + @repo if params[:source_repo_full_name].nil?
     @source_repository = Repository.from_name(params[:source_repo_full_name])
   end
@@ -39,14 +41,14 @@ class MegaMergePullRequest
   # exception: MegamergeException if before MetaPullRequest creation pr exists already
   def call
     old_pr_state = old_meta_pr
-    return nil if !old_meta_pr && @pull_id && !@config_file
+    return nil if !old_meta_pr && @pull_id && !@config_files
     return old_pr_state if old_pr_state
     open_pr = repository.find_open_pr(@source_repository, @source_branch, @target_branch)
 
     if open_pr&.id?
       open_pr = PullRequest.from_github_data(repository.pull_request(open_pr.id)) if open_pr.state_unknown?
       raise MegamergeException, "This Megamerge Pull Request exists already!" unless parent_body(open_pr).nil?
-      MetaPullRequest.create(open_pr, config_file: @config_file)
+      MetaPullRequest.create(open_pr, config_files: @config_files)
     else
       MetaPullRequest.from_params(@params)
     end

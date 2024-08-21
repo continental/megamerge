@@ -46,7 +46,7 @@ module MegaMerge
     def configuration
       {
         type: Encoder::PARENT_TYPE,
-        config_file: meta_pr.config_file,
+        config_files: meta_pr.config_files,
         source_branch: meta_pr.source_branch,
         merge_method: meta_pr.merge_method,
         automerge: meta_pr.automerge?,
@@ -61,7 +61,7 @@ module MegaMerge
         id: child.id,
         name: child.repository.name,
         merge_method: child.merge_method,
-        config_file: child.config_file
+        config_files: child.config_files
       }
     end
 

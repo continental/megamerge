@@ -48,7 +48,7 @@ RSpec.describe MegaMerge::ParentDecoderOld do
       result = described_class.new(make_template(options)).decode
 
       expect(result[:config][:source_branch]).to eq(options[:source])
-      expect(result[:config][:config_file]).to eq(options[:file])
+      expect(result[:config][:config_files]).to eq(options[:file])
       expect(result[:config][:squash]).to be(true)
       expect(result[:config][:children].size).to eq(1)
       result[:config][:children].each_with_index do |pr, i|
@@ -69,7 +69,7 @@ RSpec.describe MegaMerge::ParentDecoderOld do
 
       expect(result[:body]).to eq(options[:body])
       expect(result[:config][:source_branch]).to eq(options[:source])
-      expect(result[:config][:config_file]).to eq(options[:file])
+      expect(result[:config][:config_files]).to eq(options[:file])
       expect(result[:config][:squash]).to be(true)
       expect(result[:config][:children].size).to be(1)
       result[:config][:children].each_with_index do |pr, i|
@@ -87,7 +87,7 @@ RSpec.describe MegaMerge::ParentDecoderOld do
       result = described_class.new(make_template(options)).decode
 
       expect(result[:config][:source_branch]).to eq(options[:source])
-      expect(result[:config][:config_file]).to eq(options[:file])
+      expect(result[:config][:config_files]).to eq(options[:file])
       expect(result[:config][:squash]).to be(true)
       expect(result[:config][:children].size).to be(1)
       result[:config][:children].each_with_index do |pr, i|
@@ -108,7 +108,7 @@ RSpec.describe MegaMerge::ParentDecoderOld do
       result = described_class.new(make_template(options)).decode
 
       expect(result[:config][:source_branch]).to eq(options[:source])
-      expect(result[:config][:config_file]).to eq(options[:file])
+      expect(result[:config][:config_files]).to eq(options[:file])
       expect(result[:config][:squash]).to be(true)
       expect(result[:config][:children].size).to be(2)
 
@@ -127,7 +127,7 @@ RSpec.describe MegaMerge::ParentDecoderOld do
       result = described_class.new(make_template(options)).decode
 
       expect(result[:config][:source_branch]).to eq(options[:source])
-      expect(result[:config][:config_file]).to eq(options[:file])
+      expect(result[:config][:config_files]).to eq(options[:file])
       expect(result[:config][:squash]).to be(true)
       expect(result[:config][:children].size).to be(0)
     end
@@ -142,7 +142,7 @@ RSpec.describe MegaMerge::ParentDecoderOld do
       result = described_class.new(make_template(options)).decode
 
       expect(result[:config][:source_branch]).to eq(options[:source])
-      expect(result[:config][:config_file]).to eq(options[:file])
+      expect(result[:config][:config_files]).to eq(options[:file])
       expect(result[:config][:squash]).to be(false)
       expect(result[:config][:children].size).to be(0)
     end
@@ -180,7 +180,7 @@ RSpec.describe MegaMerge::ParentDecoderOld do
       result = described_class.new(make_template(options)).decode
 
       expect(result[:config][:source_branch]).to eq(options[:source])
-      expect(result[:config][:config_file]).to eq(options[:file])
+      expect(result[:config][:config_files]).to eq(options[:file])
       expect(result[:config][:squash]).to be(true)
       expect(result[:config][:children].size).to be(1)
 

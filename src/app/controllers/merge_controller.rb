@@ -15,7 +15,6 @@
 # limitations under the License.
 
 
-
 class MergeController < ApplicationController
   rescue_from StandardError, with: :handle_any_exception
   rescue_from Octokit::Error, with: :handle_octokit_exception # mind the order of the rescue_from!
@@ -104,6 +103,7 @@ class MergeController < ApplicationController
   #         render error template /views/merge/_sub_repo_error.erb if unsuccessfull 
   def show_repository
     raise "no parameters supplied" if params[:data].nil?
+    params[:data][:config_files] = [params[:data][:config_files]] if params[:data][:config_files].kind_of?(String)
     child = ChildPullRequest.from_params(params[:data])
     child.refresh_repo!(load_templates = true) 
     render partial: 'sub_repo', layout: false, locals: { child: child }
@@ -114,6 +114,19 @@ class MergeController < ApplicationController
     render partial: 'sub_repo_error', layout: false, locals: { e: e }
     logger.error e.message + "\n" + e.backtrace.join("\n")
   end
+  
+   def concatenate_by_config_files(array)
+        array = array.sort_by { |item| item[0].name }
+        result = []
+        array.each do |element|
+          if result.empty? || result.last[0].name != element[0].name
+            result << element
+          else
+            result.last[1].concat(element[1])
+          end
+        end
+        result
+      end
 
   # route: /create/:organization/:repository/:source_branch/:target_branch/:config_file
   # route: /view/:organization/:repository/:pull_id
@@ -121,6 +134,7 @@ class MergeController < ApplicationController
   # description: queries an existing pr for /view route or creates a new pr for /create route
   # return: render html /views/merge/show.html.erb with @pr
   def show
+    params[:config_files] = params[:config_files].split('/') if params[:config_files] # create array out of 1 to n manifest files
     @pr = MegaMergePullRequest.call(params)
     # PR exists but default.xml was not set
     if @pr.nil?
@@ -135,9 +149,11 @@ class MergeController < ApplicationController
 
     # search for repos with same source branch name and add them
     if !@pr.id?
-      found_repos = @pr.find_target_repositories(@pr.source_branch) 
+      found_repos = @pr.find_target_repositories(@pr.source_branch)
 
-      @pr.children = found_repos.map do |repo, config_file |
+      found_repos = concatenate_by_config_files(found_repos)
+
+      @pr.children = found_repos.map do |repo, config_files |
         ChildPullRequest.from_params(
           organization: repo.organization,
           repository: repo,
@@ -146,7 +162,7 @@ class MergeController < ApplicationController
           parent_full_name: repo.name,
           parent_id: 0,
           removeable: true,
-          config_file: config_file
+          config_files: config_files
         )
       end
       
@@ -155,7 +171,27 @@ class MergeController < ApplicationController
 
     return if @pr.done?
 
-    @repos_in_organization = @pr.meta_config.projects.keys #takes all the repos from the .xml files from the meta repository(including the repos that you don't have access to)
+    @all_repos = @pr.meta_config.projects.keys #takes all the repos from the .xml files from the meta repository(including the repos that you don't have access to)
+    @all_repos = @all_repos.dup
+    @duplicate_repos = @all_repos.dup
+    @repos_in_organization ||= []
+    @all_repos.each do |repo|
+      repo = repo.dup
+      repo_name = (repo.partition('/').last).partition('/').first
+      @duplicate_repos.delete(repo)
+      @duplicate_repos.each do |repos|
+        duplicate_repo_name = (repos.partition('/').last).partition('/').first
+        if(repo_name==duplicate_repo_name)
+          default_name = (repos.partition('/').last).partition('/').last
+          repo << ','
+          repo << default_name
+          @all_repos.delete(repos)
+       end
+     end
+     @repos_in_organization << repo
+    end
+
+    @repos_in_organization.freeze
   end
 
   # route: /view/:organization/:repository/find_all_sub_prs
@@ -177,12 +213,14 @@ class MergeController < ApplicationController
 
     # search for repos with same source branch name and add them
     found_repos = @pr.find_target_repositories(@pr.source_branch) 
+    
+    found_repos = concatenate_by_config_files(found_repos)
 
     if @pr.children.empty?
       @pr.children = []
     end
     # append all child_pr to pr.children unless they are already a part of that pr
-    found_repos.each do |repo, config_file |
+    found_repos.each do |repo, config_files |
       child_pr = ChildPullRequest.from_params(
         organization: repo.organization,
         repository: repo,
@@ -191,7 +229,7 @@ class MergeController < ApplicationController
         parent_full_name: repo.name,
         parent_id: 0,
         removeable: true,
-        config_file: config_file
+        config_files: config_files
       )
       @pr.children.append(child_pr) unless child_pr.status[:text].include? "This is already part of PR"
     end
@@ -201,6 +239,7 @@ class MergeController < ApplicationController
   end
 
   def save
+    params[:meta_repo][:config_files] = JSON.parse params[:meta_repo][:config_files] unless params[:meta_repo][:config_files].kind_of?(Array) # save button interprets value as string instead of array
     meta_pr = SaveMegaMergeState.call(@user, params[:meta_repo], params[:sub_repos])
     repo = meta_pr.repository
     redirect_to(view_pr_path(repo.organization, repo.repository, meta_pr.id))

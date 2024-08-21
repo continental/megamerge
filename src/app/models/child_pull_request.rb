@@ -31,7 +31,7 @@ class ChildPullRequest < PullRequest
   def self.from_child_decoding_gql(gql_data, decoded, parent)
     pr = from_gql(gql_data)
     pr.merge_method = decoded[:merge_method]
-    pr.config_file = decoded[:config_file]
+    pr.config_files = decoded[:config_files] if decoded[:config_files] # only if PR is of new kind
     pr.parent = parent
     pr
   end

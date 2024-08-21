@@ -26,7 +26,9 @@ module MegaMerge
     end
 
     def self.xml_file?(config_files)
-      config_files.all? { |file| file.ends_with?('.xml') }
+      r = config_files.map { |file| file.end_with?(".xml") }
+      return false if r.include? false
+      return true
     end
 
     def self.gitmodules_file?(config_files)
